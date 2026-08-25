@@ -159,8 +159,10 @@ function step(dt, t) {
     let dz = fz * mv.y + rz * mv.x;
     const len = Math.hypot(dx, dz);
     if (len > 0) { dx /= len; dz /= len; }
-    const nx = g.position.x + dx * speed * mv.len * dt;
-    const nz = g.position.z + dz * speed * mv.len * dt;
+    let nx = g.position.x + dx * speed * mv.len * dt;
+    let nz = g.position.z + dz * speed * mv.len * dt;
+    const solid = world.collide(nx, nz, 0.55);
+    nx = solid.x; nz = solid.z;
     if (Math.hypot(nx, nz) < ISLAND_R + 4) {
       g.position.x = nx; g.position.z = nz;
     }

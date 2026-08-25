@@ -81,6 +81,25 @@ export function tile(tex, n) {
 export function createWorld(scene, T) {
   const world = { runes: [], steam: [], yuzu: [], flowers: [], mixers: [] };
 
+  // static circular colliders (tree trunks, rocks, grove trunks, rune stones).
+  // Soft things — bushes, reeds, low spring stones, flat slabs — stay passable.
+  world.colliders = [];
+  world.collide = (x, z, r) => {
+    for (let pass = 0; pass < 2; pass++) {
+      for (const c of world.colliders) {
+        const dx = x - c.x, dz = z - c.z;
+        const min = c.r + r;
+        if (dx > min || dx < -min || dz > min || dz < -min) continue;
+        const d2 = dx * dx + dz * dz;
+        if (d2 >= min * min) continue;
+        const d = Math.sqrt(d2) || 0.001;
+        const push = (min - d) / d;
+        x += dx * push; z += dz * push;
+      }
+    }
+    return { x, z };
+  };
+
   // sky dome (gradient shader; uniforms lerped for finale nightfall)
   const skyUniforms = {
     topColor: { value: new THREE.Color(0x8a74b0) },
@@ -207,10 +226,13 @@ export function createWorld(scene, T) {
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     const h = heightAt(x, z);
     if (h < 0.7 || !clearOf(x, z)) continue;
-    const tree = makeTree(0.7 + rng() * 0.8, rng() < 0.38);
+    const s = 0.7 + rng() * 0.8;
+    const palm = rng() < 0.38;
+    const tree = makeTree(s, palm);
     tree.position.set(x, h - 0.1, z);
     tree.rotation.y = rng() * Math.PI * 2;
     scene.add(tree);
+    world.colliders.push({ x, z, r: (palm ? 0.32 : 0.44) * s });
   }
 
   // bushes & rocks & reeds & flowers
@@ -243,10 +265,12 @@ export function createWorld(scene, T) {
         bush.scale.y = 0.75;
         scene.add(bush);
       } else if (kind < 0.65) {
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + rng() * 0.5, 0), stoneMat);
+        const rockR = 0.3 + rng() * 0.5;
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rockR, 0), stoneMat);
         rock.position.set(x, h + 0.15, z);
         rock.rotation.set(rng() * 3, rng() * 3, rng() * 3);
         scene.add(rock);
+        if (rockR > 0.45) world.colliders.push({ x, z, r: rockR * 0.85 });
       } else {
         // flower: stem + petal blob
         const f = new THREE.Group();
@@ -275,6 +299,8 @@ export function createWorld(scene, T) {
     trunk.position.set(side * 3.4, 4.8, 0);
     trunk.rotation.z = -side * 0.42;
     grove.add(trunk);
+    // the trunks lean: at ground level their bases sit near ±1.16, not ±3.4
+    world.colliders.push({ x: GROVE.x + side * 1.16, z: GROVE.z, r: 0.85 });
     const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(3.1, 1), canopyMat);
     canopy.position.set(side * 1.1, 10.3, 0);
     grove.add(canopy);
@@ -323,6 +349,7 @@ export function createWorld(scene, T) {
     glow.position.set(rx, wy + 1.62, rz);
     grove.add(glow);
     world.runes.push({ stone, glow, lit: false, spot: new THREE.Vector3(GROVE.x + rx * 0.8, 0, GROVE.z + rz * 0.8) });
+    world.colliders.push({ x: GROVE.x + rx, z: GROVE.z + rz, r: 0.6 });
   }
   scene.add(grove);
   world.grove = grove;

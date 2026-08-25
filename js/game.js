@@ -470,8 +470,10 @@ export class Game {
       g.rotation.y = Math.atan2(dx, dz);
       if (pd > 5) {
         const step = 0.55 * dt;
-        g.position.x += (dx / pd) * step;
-        g.position.z += (dz / pd) * step;
+        const solid = this.world.collide(
+          g.position.x + (dx / pd) * step, g.position.z + (dz / pd) * step, 0.5);
+        g.position.x = solid.x;
+        g.position.z = solid.z;
       }
       g.position.y = Math.max(heightAt(g.position.x, g.position.z), 0.02);
       o.cr.update(dt, t, false);
@@ -535,8 +537,13 @@ export class Game {
     let moving = false;
     if (dist > 0.25) {
       const sp = Math.min(maxSpeed, dist * speedMul);
-      g.position.x += (dx / dist) * sp * dt;
-      g.position.z += (dz / dist) * sp * dt;
+      const solid = this.world.collide(
+        g.position.x + (dx / dist) * sp * dt,
+        g.position.z + (dz / dist) * sp * dt,
+        Math.min(fw.cr.shadowR, 0.8) * 0.7
+      );
+      g.position.x = solid.x;
+      g.position.z = solid.z;
       const ry = Math.atan2(dx, dz);
       let diff = ry - g.rotation.y;
       while (diff > Math.PI) diff -= Math.PI * 2;

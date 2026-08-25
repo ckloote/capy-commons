@@ -182,6 +182,19 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     stalk drains 45→35.5 ✓, wander-off engages and recovers to 55 ✓,
     3-friend parade forces retreat ✓, zero JS errors.
 
+- **Commit 7: Obstacle collision** (user-reported: capy walked through
+  trees). Static circular colliders recorded at world-build time — tree
+  trunks (radius scaled per tree, palms thinner), rocks above pebble size,
+  the grove's two trunk bases (computed at ±1.16 from the lean, not the
+  ±3.4 mesh-center x), and the 8 rune stones. 64 colliders total.
+  `world.collide(x, z, r)` does a 2-pass circle push-out (naturally slides
+  along surfaces); applied to the player, all `_moveToward` movement
+  (followers, homing, ocelot prowl/retreat), and the ocelot's stalk creep.
+  Deliberately passable: bushes, reeds, low spring stones, flat slabs —
+  a capybara shoves through soft things. Verified: walking into a tree
+  holds at exactly treeR + playerR (0.91) with no jitter; full playthrough
+  regression still green, followers path around obstacles via push-out.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

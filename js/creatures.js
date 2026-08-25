@@ -20,7 +20,8 @@ function eye(r = 0.06) { return new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6)
 export class Creature {
   constructor(group, opts = {}) {
     this.group = group;
-    this.shadow = blobShadow(opts.shadowR ?? 0.9);
+    this.shadowR = opts.shadowR ?? 0.9;
+    this.shadow = blobShadow(this.shadowR);
     group.add(this.shadow);
     this.legs = opts.legs || [];
     this.bobPart = opts.bobPart || null;   // body that bobs
