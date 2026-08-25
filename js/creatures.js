@@ -20,6 +20,8 @@ function eye(r = 0.06) { return new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6)
 export class Creature {
   constructor(group, opts = {}) {
     this.group = group;
+    this.shadow = blobShadow(opts.shadowR ?? 0.9);
+    group.add(this.shadow);
     this.legs = opts.legs || [];
     this.bobPart = opts.bobPart || null;   // body that bobs
     this.bobAmp = opts.bobAmp ?? 0.03;
@@ -46,6 +48,29 @@ export class Creature {
     if (this.tail) this.tail.rotation.y = Math.sin(t * 3 + this.phase) * 0.3;
     if (this.head) this.head.rotation.x = Math.sin(t * 0.7 + this.phase) * 0.06;
   }
+}
+
+let shadowTex = null;
+function blobShadow(r) {
+  if (!shadowTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+    g.addColorStop(0, 'rgba(20,14,6,0.42)');
+    g.addColorStop(1, 'rgba(20,14,6,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+    shadowTex = new THREE.CanvasTexture(c);
+  }
+  const m = new THREE.Mesh(
+    new THREE.CircleGeometry(r, 18),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })
+  );
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.06;
+  m.renderOrder = 1;
+  return m;
 }
 
 function leg(matl, r, h) {
@@ -99,7 +124,7 @@ export function makeCapybara(T, scale = 1) {
   }
 
   g.scale.setScalar(scale);
-  return new Creature(g, { legs, bobPart: body, head, baseY: 0 });
+  return new Creature(g, { legs, bobPart: body, head, baseY: 0, shadowR: 1.0 });
 }
 
 // ---------- Tapir ----------
@@ -133,7 +158,7 @@ export function makeTapir(T) {
     L.position.set(sx, 0.6, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head });
+  return new Creature(g, { legs, bobPart: body, head, shadowR: 1.3 });
 }
 
 // ---------- Heron ----------
@@ -172,7 +197,7 @@ export function makeHeron(T) {
     L.position.set(sx, 0.85, 0);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 0.8 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 0.8, shadowR: 0.6 });
 }
 
 // ---------- Otter ----------
@@ -211,7 +236,7 @@ export function makeOtter(T) {
     L.position.set(sx, 0.22, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3, shadowR: 0.65 });
 }
 
 // ---------- Mallard duck & duckling ----------
@@ -243,7 +268,7 @@ export function makeDuck(T) {
     L.position.set(sx, 0.2, 0.05);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4, shadowR: 0.5 });
 }
 
 export function makeDuckling() {
@@ -269,7 +294,7 @@ export function makeDuckling() {
     L.position.set(sx, 0.09, 0.02);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, speedMul: 2.2 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, speedMul: 2.2, shadowR: 0.25 });
 }
 
 // ---------- Squirrel monkey ----------
@@ -316,7 +341,7 @@ export function makeMonkey(T) {
     L.position.set(sx, 0.3, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.6 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.6, shadowR: 0.5 });
 }
 
 // ---------- Agouti ----------
@@ -350,7 +375,7 @@ export function makeAgouti(T) {
     L.position.set(sx, 0.32, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, speedMul: 1.5 });
+  return new Creature(g, { legs, bobPart: body, head, speedMul: 1.5, shadowR: 0.5 });
 }
 
 // ---------- Caiman ----------
@@ -395,7 +420,7 @@ export function makeCaiman(T) {
     L.rotation.z = sx > 0 ? -0.5 : 0.5;
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9 });
+  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9, shadowR: 1.15 });
 }
 
 // ---------- Marmoset (tiny) ----------
@@ -432,7 +457,7 @@ export function makeMarmoset(T) {
     L.position.set(sx, 0.2, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8, shadowR: 0.35 });
 }
 
 export const BUILDERS = {

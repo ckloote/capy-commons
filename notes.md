@@ -104,6 +104,16 @@ the design from the strong signals available:
     conga → rune walk all function; forced finale shows portal glow,
     nightfall, fireflies, banner.
 
-### Next up
-- Full 8-friend playthrough simulation; perf sanity on pixel-heavy scenes.
-- Maybe: capybara reflection/shadow blob, more surprise touches.
+- **Commit 4**: Full-loop verification + depth polish.
+  - Scripted complete playthrough in headless Chromium: all 6 items → 3
+    ducklings → all 8 friends (incl. caiman quiet-company timer) → grove →
+    8 runes lit → finale triggered. Zero JS errors the whole run.
+  - Soft blob shadows under every creature (shared radial canvas texture,
+    per-species radius); hidden while swimming.
+  - HUD counter reads "The Gathering is complete 🌙" at 8/8.
+  - README.md with controls table and credits for the Gemini textures.
+
+### Status: feature-complete
+Remaining niceties if time allows: idle capybara ear wiggles, more ambient
+critters. The emoji want-icons depend on the device's emoji font (headless
+Chromium renders a few as outlines; real phones/desktops are fine).

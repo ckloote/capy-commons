@@ -423,6 +423,7 @@ export class Game {
     }
     const h = heightAt(g.position.x, g.position.z);
     g.position.y = h < 0 ? -0.1 : h;   // swim or walk
+    fw.cr.shadow.visible = h >= 0;
     // squeak-answer hop
     if (fw.hopAt != null && t > fw.hopAt) { fw.hopAt = null; fw.hopV = 3.2; fw.hopY = 0; }
     if (fw.hopV) {
@@ -459,7 +460,9 @@ export class Game {
 
   _updateHUD() {
     const n = this.friends.filter((f) => f.state !== 'waiting').length;
-    $('friend-count').textContent = `${this.homed}/8 home · ${n - this.homed > 0 ? (n - this.homed) + ' in your parade' : 'parade empty'}`;
+    $('friend-count').textContent = this.homed >= 8
+      ? 'The Gathering is complete 🌙'
+      : `${this.homed}/8 home · ${n - this.homed > 0 ? (n - this.homed) + ' in your parade' : 'parade empty'}`;
     const dots = $('friend-dots');
     dots.innerHTML = '';
     for (const f of this.friends) {

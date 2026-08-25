@@ -114,8 +114,9 @@ function step(dt, t) {
   wasSwimming = nowSwimming;
   g.position.y = (nowSwimming ? -0.25 : h2) + hopY;
   player.update(dt, t, moving);
-  // hide leg churn while swimming
+  // hide leg churn + shadow while swimming
   for (const L of player.legs) L.visible = !nowSwimming;
+  player.shadow.visible = !nowSwimming;
 
   // actions
   if (input.takeAction()) {
