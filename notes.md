@@ -41,8 +41,40 @@ the design from the strong signals available:
   (placeholder until the game ships). Mobile viewport meta + touch-safe CSS
   in place from the start. Also this `notes.md`.
 
+- **Commit 2**: Playable build.
+  - 13 Gemini-generated tileable textures in `assets/textures/` (grass, path,
+    water, bark, canopy, capy/tapir/otter fur, heron/duck feathers, caiman
+    scales, stone, petals) — `gemini-3.1-flash-image`, downsized to 512px JPG,
+    ~900 KB total. Generation script kept in session scratchpad.
+  - `lib/three.module.min.js` vendored (r168) + import map, so the site is
+    fully self-contained static files.
+  - `js/world.js`: analytic island heightfield (dome + fbm noise + pond
+    depressions + knolls for grove/spring/spawn), vertex-colored terrain with
+    sandy shorelines, scrolling water plane, gradient sky shader (uniforms
+    lerp to night at finale), ~50 procedural trees/palms, bushes, rocks,
+    reeds, flowers, stepping-stone trail, Grove Gate (leaning trunk arch,
+    portal ring, 8 rune stones), hot spring (stone ring, bobbing yuzu,
+    steam sprites).
+  - `js/creatures.js`: primitive-built capybara, tapir, heron, otter, mallard
+    + ducklings, squirrel monkey, agouti, caiman, marmoset — all with the
+    generated textures, generic leg-swing/bob animation rig.
+  - `js/game.js`: 8 friends with personalities and wants (5 fetch items, a
+    lost-ducklings quest, and Old Grim who just wants quiet company —
+    proximity meter), conga-line following via breadcrumb trail sampling,
+    grove delivery lights runes one by one, finale = portal opens, sky falls
+    to night, 70 fireflies, petal burst, celebration. Emoji-sprite particles.
+  - `js/input.js`: WASD/arrows + pointer-drag camera + wheel zoom on desktop;
+    dynamic virtual joystick (appears where thumb lands, left 45% of screen),
+    camera drag on right, two-finger pinch zoom, big 🐾 action + 🎵 squeak
+    buttons on touch.
+  - `js/audio.js`: WebAudio synth — capybara squeak, pickup pluck, per-friend
+    rising pentatonic join chords, rune bells, splash, finale melody + pad,
+    looping soft wind + random birdsong.
+  - Extras: swimming (capys swim! slower, legs hidden, splash), hot-spring
+    yuzu speed boost, squeak makes the whole parade answer-hop.
+  - Headless Chromium test: no JS errors; title → game → walking all render.
+
 ### Next up
-- Verify Gemini image API access through the session proxy; generate first
-  texture batch (grass, water, bark, canopy, fur, stone, path).
-- Vendor Three.js into `lib/` (registry.npmjs.org is reachable).
-- Terrain + water + capybara controller, then friends & the Grove Gate.
+- Soften the horizon (water/fog tint), check capybara from the front.
+- Gemini-painted title background art to replace the CSS title scene.
+- Mobile viewport test pass (touch controls, small screens).
