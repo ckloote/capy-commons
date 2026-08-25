@@ -2,7 +2,12 @@
 import * as THREE from 'three';
 
 function mat(tex, tint) {
-  const m = new THREE.MeshLambertMaterial({ map: tex });
+  // clone so creature UV tiling doesn't affect world materials (image is shared)
+  const t = tex.clone();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(2.5, 2.5);
+  t.needsUpdate = true;
+  const m = new THREE.MeshLambertMaterial({ map: t });
   if (tint) m.color.set(tint);
   return m;
 }
@@ -79,9 +84,9 @@ export function makeCapybara(T, scale = 1) {
   head.add(nose);
   for (const s of [-1, 1]) {
     const e = eye(0.055); e.position.set(s * 0.19, 0.13, 0.2); head.add(e);
-    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), fur);
-    ear.scale.set(0.8, 1, 0.5);
-    ear.position.set(s * 0.2, 0.3, -0.05);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), fur);
+    ear.scale.set(0.7, 0.85, 0.45);
+    ear.position.set(s * 0.19, 0.28, -0.06);
     head.add(ear);
   }
   g.add(head);

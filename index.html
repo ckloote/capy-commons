@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Capy Commons — The Gathering</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -27,6 +28,8 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     background:
+      linear-gradient(180deg, rgba(25,18,6,.08) 0%, rgba(25,18,6,.02) 40%, rgba(25,18,6,.5) 100%),
+      url('assets/title-bg.jpg') center / cover no-repeat,
       linear-gradient(180deg,
         #7f6a9e 0%, #c98a6b 28%, #f2b26a 46%,
         #e8a75d 52%, #3d4d2e 60%, #2c3a22 78%, #1d2a17 100%);
@@ -34,43 +37,6 @@
   }
   #title-screen.hidden { opacity: 0; pointer-events: none; }
 
-  .sun {
-    position: absolute; top: 34%; left: 50%;
-    width: min(22vmin, 130px); height: min(22vmin, 130px);
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: radial-gradient(circle, #fff6d8 0%, #ffdf8e 45%, rgba(255,210,120,0) 72%);
-    filter: blur(2px);
-    animation: sunPulse 6s ease-in-out infinite;
-  }
-  @keyframes sunPulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: .95; }
-    50%       { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
-  }
-  .water-band {
-    position: absolute; top: 52%; left: 0; right: 0; height: 9%;
-    background: linear-gradient(180deg, rgba(255,214,140,.55), rgba(120,140,110,.25));
-    overflow: hidden;
-  }
-  .shimmer {
-    position: absolute; inset: 0;
-    background: repeating-linear-gradient(180deg,
-      rgba(255,246,210,.35) 0 2px, transparent 2px 7px);
-    animation: shimmer 3.4s linear infinite;
-    opacity: .6;
-  }
-  @keyframes shimmer { from { transform: translateY(0); } to { transform: translateY(7px); } }
-  .capy-silhouette {
-    position: absolute; top: 46.5%; left: 50%;
-    transform: translateX(-50%);
-    width: min(34vmin, 220px);
-    opacity: .92;
-    animation: bob 4.2s ease-in-out infinite;
-  }
-  @keyframes bob {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50%       { transform: translateX(-50%) translateY(-4px); }
-  }
   .firefly {
     position: absolute; width: 5px; height: 5px; border-radius: 50%;
     background: #ffe9a8;
@@ -314,19 +280,6 @@
 </div>
 
 <div id="title-screen">
-  <div class="sun"></div>
-  <div class="water-band"><div class="shimmer"></div></div>
-
-  <svg class="capy-silhouette" viewBox="0 0 200 110" aria-hidden="true">
-    <path fill="#241a0e" d="
-      M28,96 Q22,80 30,64 Q38,46 62,40 Q80,35 100,35
-      Q118,34 132,30 Q138,20 146,18 Q154,16 158,22
-      Q166,20 170,26 Q174,32 170,40 Q176,50 174,62
-      Q172,78 158,88 Q140,98 112,99 Q66,101 44,99 Q32,98 28,96 Z"/>
-    <ellipse cx="152" cy="38" rx="2.6" ry="3.4" fill="#1a1408"/>
-    <path d="M12,99 H188" stroke="#241a0e" stroke-width="2.5" stroke-linecap="round" opacity=".5"/>
-  </svg>
-
   <div class="title-block">
     <h1>Capy Commons</h1>
     <h2>The Gathering</h2>

@@ -74,7 +74,36 @@ the design from the strong signals available:
     yuzu speed boost, squeak makes the whole parade answer-hop.
   - Headless Chromium test: no JS errors; title → game → walking all render.
 
+- **Commit 3**: Art & polish pass (all verified with headless-Chromium
+  screenshots at desktop 900×600 and iPhone-ish 375×667 w/ touch events).
+  - Gemini-painted 16:9 title background (`assets/title-bg.jpg`) — painterly
+    sunset wetland with a capybara leading tapir/heron/otter/ducks toward a
+    glowing grove, remarkably close to the concept art. CSS-painted title
+    scenery removed (fireflies kept); dark gradient overlay for text.
+  - Regenerated `fur_capy` much finer — the old strand-y texture read as
+    wood grain on the capsule body. Creature materials now clone their
+    texture and tile it 2.5×, which fixed the "wooden barrel capybara".
+  - Steam sprites got a soft radial puff texture (were rendering as white
+    squares — SpriteMaterial with no map).
+  - Distant-water moiré fixed: water repeat 34→11, anisotropy 16, fog pulled
+    in (55→210). Sky softened toward the title art's peach/lavender palette
+    (finale lerp start colors updated to match).
+  - Bug: friends never "arrived" at their rune spot — arrival used 3D
+    distance but homeSpot.y=0 while creatures stand at terrain height ~2.
+    Now horizontal distance. (Found via scripted quest run: fish → heron →
+    grove; headless GL runs ~5fps so everything looked stuck at first —
+    real cause was the y-offset.)
+  - Direction words in quest text corrected to match actual coordinates
+    (north = toward the grove). Pip the agouti still *says* "North-ish?"
+    about a nut that is far south — that one is a joke, the action-button
+    hint tells the truth.
+  - Favicon (🌿), dead CSS removed, debug hooks (`window.CAPY`) for
+    scripted testing.
+  - Verified: title art on portrait mobile crops beautifully; joystick
+    appears under thumb and moves the capy; fish pickup → heron befriend →
+    conga → rune walk all function; forced finale shows portal glow,
+    nightfall, fireflies, banner.
+
 ### Next up
-- Soften the horizon (water/fog tint), check capybara from the front.
-- Gemini-painted title background art to replace the CSS title scene.
-- Mobile viewport test pass (touch controls, small screens).
+- Full 8-friend playthrough simulation; perf sanity on pixel-heavy scenes.
+- Maybe: capybara reflection/shadow blob, more surprise touches.

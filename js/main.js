@@ -54,6 +54,13 @@ function buildGame() {
   scene.add(player.group);
 
   input = new Input(canvas);
+  // debug/test hooks
+  window.CAPY = {
+    scene, camera, game, world,
+    get player() { return player; },
+    teleport(x, z) { player.group.position.set(x, Math.max(heightAt(x, z), 0), z); },
+    setCam(yaw, pitch, dist) { camYaw = yaw; if (pitch !== undefined) camPitch = pitch; if (dist !== undefined) camDist = dist; },
+  };
   animate();
 }
 

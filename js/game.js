@@ -58,13 +58,13 @@ const FRIENDS = [
     pos: [31, 6], ask: 'Hana stands perfectly still. "A silver fish glints in the pond shallows. My old wings miss the dive…"',
     thanks: 'Hana swallows the fish in one elegant gulp. She strides after you on stilt legs!' },
   { id: 'otter', name: 'Rio the Otter', emoji: '🪨', want: 'skipstone', space: 1.8,
-    pos: [-14, 30], ask: 'Rio juggles nothing. "Lost my lucky skipping stone! Flat, smooth, somewhere south of the meadow."',
+    pos: [-14, 30], ask: 'Rio juggles nothing. "Lost my lucky skipping stone! Flat, smooth, somewhere up the stone trail north of the meadow."',
     thanks: 'Rio skips the stone across the water — four bounces! He tumbles into line, chittering.' },
   { id: 'duck', name: 'Mabel the Mallard', emoji: '🐥', want: 'ducklings', space: 1.6,
     pos: [21, 22], ask: 'Mabel is beside herself. "My three ducklings wandered off! Please, bring them waddling back."',
     thanks: 'Mabel counts her ducklings twice, then quacks the happiest quack you have ever heard.' },
   { id: 'monkey', name: 'Miko the Monkey', emoji: '🥭', want: 'mango', space: 1.8,
-    pos: [-34, 16], ask: 'Miko swings down. "Mango. MANGO. There is one under a tree in the southwest and it is calling to me."',
+    pos: [-34, 16], ask: 'Miko swings down. "Mango. MANGO. There is one under a tree to the northwest and it is calling to me."',
     thanks: 'Miko cradles the mango like treasure and scampers into line behind you!' },
   { id: 'agouti', name: 'Pip the Agouti', emoji: '🌰', want: 'nut', space: 1.5,
     pos: [8, 38], ask: 'Pip twitches. "I buried a marvelous nut. Somewhere. North-ish? It is gone. This is a catastrophe."',
@@ -73,7 +73,7 @@ const FRIENDS = [
     pos: [38, -10], ask: 'Old Grim says nothing. He simply floats. Perhaps he just wants… quiet company. (Stay close a while.)',
     thanks: 'Old Grim opens one golden eye. "…fine," he rumbles, and drifts after you like a very slow torpedo.' },
   { id: 'marmoset', name: 'Luna the Marmoset', emoji: '🫐', want: 'berry', space: 1.4,
-    pos: [-38, -20], ask: 'Luna, tiny and serious: "One berry. The plump kind that grows near the west woods. Then I am yours."',
+    pos: [-38, -20], ask: 'Luna, tiny and serious: "One berry. The plump kind that grows in the northwest woods. Then I am yours."',
     thanks: 'Luna eats the berry in seventeen rapid bites and climbs onto the parade!' },
 ];
 
@@ -328,8 +328,8 @@ export class Game {
           }
         }
       } else if (f.state === 'homing') {
-        this._moveToward(f, f.homeSpot, dt, t, 1.6, 3.5);
-        if (f.cr.group.position.distanceTo(f.homeSpot) < 1.2) {
+        this._moveToward(f, f.homeSpot, dt, t, 1.6, 5);
+        if (Math.hypot(f.cr.group.position.x - f.homeSpot.x, f.cr.group.position.z - f.homeSpot.z) < 1.2) {
           f.state = 'home';
           this.homed++;
           const rune = this.world.runes[f.runeIndex];
@@ -379,8 +379,8 @@ export class Game {
     }
     for (const d of this.ducklings) {
       if (d.state === 'homing') {
-        this._moveToward(d, d.homeSpot, dt, t, 2, 4);
-        if (d.cr.group.position.distanceTo(d.homeSpot) < 0.8) d.state = 'home';
+        this._moveToward(d, d.homeSpot, dt, t, 2, 5);
+        if (Math.hypot(d.cr.group.position.x - d.homeSpot.x, d.cr.group.position.z - d.homeSpot.z) < 0.8) d.state = 'home';
       } else if (d.state === 'home') d.cr.update(dt, t, false);
     }
 
@@ -531,9 +531,9 @@ export class Game {
     this.finaleT += dt;
     const k = Math.min(1, this.finaleT / 8); // nightfall over 8s
     const sky = this.world.skyUniforms;
-    sky.topColor.value.lerpColors(new THREE.Color(0x6f5fa0), new THREE.Color(0x131b38), k);
-    sky.midColor.value.lerpColors(new THREE.Color(0xffb264), new THREE.Color(0x2c3d66), k);
-    sky.botColor.value.lerpColors(new THREE.Color(0xffe0a0), new THREE.Color(0x3d5580), k);
+    sky.topColor.value.lerpColors(new THREE.Color(0x8a74b0), new THREE.Color(0x131b38), k);
+    sky.midColor.value.lerpColors(new THREE.Color(0xf8c48a), new THREE.Color(0x2c3d66), k);
+    sky.botColor.value.lerpColors(new THREE.Color(0xffe9c0), new THREE.Color(0x3d5580), k);
     this.world.fog.color.lerpColors(new THREE.Color(0xf5c98a), new THREE.Color(0x1c2a48), k);
     this.world.hemi.intensity = 0.95 - 0.5 * k;
     this.world.sun.intensity = 1.5 - 1.15 * k;
@@ -553,12 +553,12 @@ export class Game {
 
 function hintFor(cfg) {
   switch (cfg.want) {
-    case 'flower': return 'A sweet flower grows in the northern meadow…';
-    case 'fish': return 'Something glints in the big pond shallows…';
-    case 'skipstone': return 'A flat lucky stone lies south of the meadow…';
-    case 'mango': return 'A mango waits under a southwest tree…';
-    case 'nut': return 'A marvelous nut is somewhere up north…';
-    case 'berry': return 'A plump berry grows near the west woods…';
+    case 'flower': return 'A sweet flower grows in the meadow southwest of where you woke…';
+    case 'fish': return 'Something glints in the big pond shallows to the east…';
+    case 'skipstone': return 'A flat lucky stone lies on the trail north of the meadow…';
+    case 'mango': return 'A mango waits under a tree in the northwest…';
+    case 'nut': return 'A marvelous nut is somewhere in the far south grass…';
+    case 'berry': return 'A plump berry grows in the northwest woods…';
     case 'ducklings': return 'Three ducklings are lost around the pond — walk near them and they will follow!';
     default: return 'They seem to want something…';
   }

@@ -83,9 +83,9 @@ export function createWorld(scene, T) {
 
   // sky dome (gradient shader; uniforms lerped for finale nightfall)
   const skyUniforms = {
-    topColor: { value: new THREE.Color(0x6f5fa0) },
-    midColor: { value: new THREE.Color(0xffb264) },
-    botColor: { value: new THREE.Color(0xffe0a0) },
+    topColor: { value: new THREE.Color(0x8a74b0) },
+    midColor: { value: new THREE.Color(0xf8c48a) },
+    botColor: { value: new THREE.Color(0xffe9c0) },
     offset: { value: 0.12 },
   };
   const sky = new THREE.Mesh(
@@ -108,7 +108,7 @@ export function createWorld(scene, T) {
   scene.add(sky);
   world.skyUniforms = skyUniforms;
 
-  scene.fog = new THREE.Fog(0xf5c98a, 60, 260);
+  scene.fog = new THREE.Fog(0xf5c98a, 55, 210);
   world.fog = scene.fog;
 
   // lights
@@ -147,9 +147,10 @@ export function createWorld(scene, T) {
 
   // water
   const waterMat = new THREE.MeshLambertMaterial({
-    map: tile(T.water, 34), transparent: true, opacity: 0.82,
-    color: 0xbfd8c8,
+    map: tile(T.water, 11), transparent: true, opacity: 0.85,
+    color: 0xd6e2bc,
   });
+  T.water.anisotropy = 16;
   const water = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), waterMat);
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0;
@@ -356,8 +357,17 @@ export function createWorld(scene, T) {
     spring.add(y);
     world.yuzu.push(y);
   }
-  // steam sprites
-  const steamMat = new THREE.SpriteMaterial({ color: 0xffffff, transparent: true, opacity: 0.24, depthWrite: false });
+  // steam sprites (soft radial puff texture)
+  const puffCanvas = document.createElement('canvas');
+  puffCanvas.width = puffCanvas.height = 64;
+  const pctx = puffCanvas.getContext('2d');
+  const grad = pctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  pctx.fillStyle = grad;
+  pctx.fillRect(0, 0, 64, 64);
+  const puffTex = new THREE.CanvasTexture(puffCanvas);
+  const steamMat = new THREE.SpriteMaterial({ map: puffTex, transparent: true, opacity: 0.24, depthWrite: false });
   for (let i = 0; i < 8; i++) {
     const s = new THREE.Sprite(steamMat.clone());
     s.scale.set(1.6, 1.6, 1);
