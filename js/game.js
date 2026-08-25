@@ -1,6 +1,6 @@
 // game.js — friends, items, conga line, grove delivery, finale, particles, UI
 import * as THREE from 'three';
-import { BUILDERS, makeDuckling } from './creatures.js';
+import { BUILDERS, makeDuckling, makeOcelot } from './creatures.js';
 import { heightAt, GROVE, SPRING, ISLAND_R } from './world.js';
 
 // ---------- emoji sprite helper ----------
@@ -117,6 +117,12 @@ export class Game {
     this.ripples = [];
     this.boostUntil = -99;
     this.springToastAt = -99;
+    // zen (phase 1): the only "health" this game has
+    this.zen = 78;
+    this.napping = false;        // set by main each frame
+    this.zenFaceState = '';
+    this.stressed = false;       // ocelot aura active this frame
+    this.wanderingOff = false;   // set by main during the stress-out stroll
     this.trail = [];          // {x,z,d}
     this.trailD = 0;
     this.T = T;
@@ -165,6 +171,16 @@ export class Game {
       g.position.set(x, Math.max(heightAt(x, z), 0.05), z);
       this.scene.add(g);
       this.items.push({ cfg, g, sprite: s, taken: false });
+    }
+    // the ocelot: a slow-circling worry on the east bank
+    {
+      const cr = makeOcelot(T);
+      cr.group.position.set(43, Math.max(heightAt(43, 4), 0.02), 4);
+      scene.add(cr.group);
+      this.ocelot = {
+        cr, angle: Math.random() * Math.PI * 2, state: 'prowl',
+        cx: 43, cz: 4, r: 6.5, calmUntil: -99, stungAt: -99, toldOff: false,
+      };
     }
     this._updateHUD();
   }
@@ -321,7 +337,8 @@ export class Game {
         // caiman quiet company
         if (f.cfg.want === 'company') {
           if (d < 4.5) {
-            f.companyTime += dt;
+            // napping beside Old Grim is the fastest way to his heart
+            f.companyTime += dt * (this.napping ? 2.5 : 1);
             if (f.companyTime > 4) this._befriend(f);
           } else {
             f.companyTime = Math.max(0, f.companyTime - dt * 2);
@@ -398,11 +415,117 @@ export class Game {
       }
     }
 
+    // ocelot + zen
+    this._updateOcelot(dt, t, player);
+    this._updateZen(dt, t, player, playerMoving, springD);
+
     // finale progression
     if (this.finaleStarted) this._updateFinale(dt, t);
 
     // prompt card
     this._updatePrompt(player.position);
+  }
+
+  // ----- ocelot: prowls, stalks, and is politely outnumbered -----
+  _updateOcelot(dt, t, player) {
+    const o = this.ocelot;
+    const g = o.cr.group;
+    const pd = Math.hypot(player.position.x - g.position.x, player.position.z - g.position.z);
+    const procession = this.followers.length;
+    this.stressed = false;
+
+    if (this.finaleStarted && o.state !== 'retreat') {
+      // even the ocelot attends the Gathering, from a respectful distance
+      o.state = 'calmed';
+    }
+
+    if (o.state === 'prowl') {
+      if (pd < 12 && t > o.calmUntil) {
+        if (procession >= 3) {
+          o.state = 'retreat';
+          o.retreatT = 0;
+          if (!o.toldOff) {
+            o.toldOff = true;
+            toast('The ocelot eyes your parade… and thinks better of it. Your calm outnumbers its menace. 🐾');
+          }
+          this.particles.burst('💨', g.position.clone().add(new THREE.Vector3(0, 0.8, 0)), { count: 4, size: 0.35 });
+        } else {
+          o.state = 'stalk';
+          if (t - o.stungAt > 20) {
+            o.stungAt = t;
+            this.sound.stress();
+            this.particles.burst('❗', g.position.clone().add(new THREE.Vector3(0, 1.2, 0)), { count: 1, size: 0.5, up: 1, life: 1.2 });
+            toast('An ocelot is watching. Your zen is draining — more friends, or more distance. 🐆', 3800);
+          }
+        }
+      } else {
+        o.angle += dt * 0.22;
+        const tx = o.cx + Math.cos(o.angle) * o.r;
+        const tz = o.cz + Math.sin(o.angle) * o.r;
+        this._moveToward(o, { x: tx, z: tz }, dt, t, 1.2, 2.2);
+      }
+    } else if (o.state === 'stalk') {
+      // frozen, staring; slow low creep toward the player, never closing fully
+      const dx = player.position.x - g.position.x, dz = player.position.z - g.position.z;
+      g.rotation.y = Math.atan2(dx, dz);
+      if (pd > 5) {
+        const step = 0.55 * dt;
+        g.position.x += (dx / pd) * step;
+        g.position.z += (dz / pd) * step;
+      }
+      g.position.y = Math.max(heightAt(g.position.x, g.position.z), 0.02);
+      o.cr.update(dt, t, false);
+      this.stressed = pd < 12;
+      if (pd > 14) o.state = 'prowl';
+      if (procession >= 3) { o.state = 'retreat'; o.retreatT = 0; }
+    } else if (o.state === 'retreat') {
+      o.retreatT += dt;
+      const away = new THREE.Vector3(g.position.x - player.position.x, 0, g.position.z - player.position.z).normalize();
+      this._moveToward(o, {
+        x: g.position.x + away.x * 6, z: g.position.z + away.z * 6,
+      }, dt, t, 2.5, 6);
+      if (o.retreatT > 3.5) { o.state = 'prowl'; o.calmUntil = t + 25; }
+    } else if (o.state === 'calmed') {
+      o.cr.update(dt, t, false);
+    }
+  }
+
+  // ----- zen -----
+  _updateZen(dt, t, player, moving, springD) {
+    let delta = this.napping ? 8 : (moving ? 0.35 : 1.1);
+    if (springD < 3.4) delta += 6;
+    // the pile bonus: every friend nearby is a little weighted blanket
+    let near = 0;
+    for (const fw of this.followers) {
+      if (fw.cr.group.position.distanceTo(player.position) < 7) near++;
+    }
+    delta += Math.min(4, near * 0.6);
+    if (this.stressed) {
+      const od = Math.hypot(player.position.x - this.ocelot.cr.group.position.x,
+        player.position.z - this.ocelot.cr.group.position.z);
+      delta -= (1 - Math.min(1, od / 12)) * 9 + 3;
+    }
+    if (this.finaleStarted) delta = Math.max(delta, 10); // perfect calm settles
+    this.zen = Math.max(0, Math.min(100, this.zen + delta * dt));
+
+    // HUD ring
+    const arc = $('zen-arc');
+    arc.style.strokeDashoffset = (150.8 * (1 - this.zen / 100)).toFixed(1);
+    arc.style.stroke = this.zen > 60 ? '#a8e8c8' : this.zen > 30 ? '#ffd98a' : '#ff9a80';
+    const face = this.napping ? '😴' : this.zen > 66 ? '😌' : this.zen > 33 ? '🙂' : '😟';
+    if (face !== this.zenFaceState) {
+      this.zenFaceState = face;
+      $('zen-face').textContent = face;
+    }
+    // low-zen vignette creep (full stress-out handled in main)
+    const vig = document.getElementById('vignette');
+    if (!this.wanderingOff) {
+      vig.style.opacity = this.zen < 35 ? ((35 - this.zen) / 35 * 0.7).toFixed(2) : 0;
+    }
+    if (!this.zenHintShown && this.zen < 45) {
+      this.zenHintShown = true;
+      toast('Your zen is fading. Nap 💤, soak in the hot spring, or keep friends close. 🌿', 5200);
+    }
   }
 
   _moveToward(fw, target, dt, t, speedMul, maxSpeed) {

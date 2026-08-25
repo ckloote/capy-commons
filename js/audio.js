@@ -92,6 +92,26 @@ export class Sound {
     });
   }
 
+  snore() {
+    if (!this.ctx) return;
+    const t = this._now();
+    this._tone(140, t, 0.55, { type: 'sine', gain: 0.05, glideTo: 110, attack: 0.2 });
+    this._tone(190, t + 0.85, 0.4, { type: 'sine', gain: 0.03, glideTo: 230, attack: 0.15 });
+  }
+  stress() {
+    if (!this.ctx) return;
+    const t = this._now();
+    this._tone(110, t, 0.5, { type: 'sawtooth', gain: 0.05, glideTo: 90 });
+    this._tone(165, t + 0.05, 0.45, { type: 'triangle', gain: 0.04, glideTo: 140 });
+  }
+  relief() {
+    if (!this.ctx) return;
+    const t = this._now();
+    [392, 523, 659].forEach((f, i) => {
+      this._tone(f, t + i * 0.16, 0.6, { type: 'sine', gain: 0.09, attack: 0.05 });
+    });
+  }
+
   _noiseSrc(dur) {
     const len = Math.floor(this.ctx.sampleRate * dur);
     const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);

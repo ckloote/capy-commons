@@ -460,6 +460,56 @@ export function makeMarmoset(T) {
   return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8, shadowR: 0.35 });
 }
 
+// ---------- Ocelot (the wetland's gentle menace — never catches anyone) ----------
+export function makeOcelot(T) {
+  const fur = mat(T.fur_ocelot);
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.85, 6, 10), fur);
+  body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
+  body.position.y = 0.5; body.userData.y0 = 0.5;
+  g.add(body);
+  const head = new THREE.Group();
+  head.position.set(0, 0.72, 0.6);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), fur);
+  skull.scale.set(0.95, 0.9, 1);
+  head.add(skull);
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), solid(0xf0e0cc));
+  muzzle.scale.set(1.2, 0.8, 0.9);
+  muzzle.position.set(0, -0.06, 0.16);
+  head.add(muzzle);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), solid(0x8a4a44));
+  nose.position.set(0, -0.02, 0.25);
+  head.add(nose);
+  for (const s of [-1, 1]) {
+    const e = eye(0.045); e.position.set(s * 0.09, 0.06, 0.16); head.add(e);
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 4), fur);
+    ear.position.set(s * 0.13, 0.2, -0.02);
+    head.add(ear);
+  }
+  g.add(head);
+  // long expressive tail
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.52, -0.6);
+  let ang = -0.9;
+  let ty = 0, tz = 0;
+  for (let i = 0; i < 4; i++) {
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.05 - i * 0.007, 0.055 - i * 0.007, 0.28, 6), fur);
+    seg.position.set(0, ty, tz);
+    seg.rotation.x = ang;
+    tail.add(seg);
+    ty += Math.cos(ang) * 0.24; tz -= Math.sin(ang) * 0.24;
+    ang += 0.5;
+  }
+  g.add(tail);
+  const legs = [];
+  for (const [sx, sz] of [[-0.17, 0.35], [0.17, 0.35], [-0.17, -0.35], [0.17, -0.35]]) {
+    const L = leg(fur, 0.06, 0.42);
+    L.position.set(sx, 0.42, sz);
+    g.add(L); legs.push(L);
+  }
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.1, shadowR: 0.75 });
+}
+
 export const BUILDERS = {
   capybara: makeCapybara,
   tapir: makeTapir,

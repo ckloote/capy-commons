@@ -19,6 +19,13 @@ No build step, no external CDNs — everything is vendored.
 | Zoom | scroll wheel | pinch |
 | Interact | E / Space | 🐾 button |
 | Squeak | Q | 🎵 button |
+| Nap | Z | 💤 button |
+
+**Zen** is the only "health" here. It refills while you idle, nap, soak in
+the hot spring, or keep friends close — and drains when the ocelot on the
+east bank is watching you. Hit zero and nothing bad happens: you just wander
+off to somewhere calmer and collect yourself. A big enough parade makes the
+ocelot think better of it entirely.
 
 Capybaras can swim. The hot spring in the west does something nice.
 Squeak near your parade and see what happens.

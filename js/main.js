@@ -1,6 +1,6 @@
 // main.js — bootstrap, player controller, camera, render loop
 import * as THREE from 'three';
-import { createWorld, heightAt, ISLAND_R, GROVE } from './world.js';
+import { createWorld, heightAt, ISLAND_R, GROVE, SPRING } from './world.js';
 import { makeCapybara } from './creatures.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
@@ -23,7 +23,7 @@ window.addEventListener('resize', () => {
 
 // ---------- texture loading ----------
 const NAMES = ['grass', 'path', 'water', 'bark', 'canopy', 'stone', 'petals',
-  'fur_capy', 'fur_dark', 'fur_otter', 'feathers_heron', 'feathers_duck', 'scales'];
+  'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales'];
 const loader = new THREE.TextureLoader();
 const T = {};
 const texturesReady = Promise.all(NAMES.map((n) => new Promise((res, rej) => {
@@ -42,6 +42,9 @@ let camPitch = 0.42;
 let camDist = 8.5;
 let hopY = 0, hopV = 0;
 let wasSwimming = false;
+let napping = false;
+let napZZZTimer = 0, snoreTimer = 0, napZoom = 0;
+let wander = null;   // { target, t } during the zen-zero stroll
 const clock = new THREE.Clock();
 
 function buildGame() {
@@ -94,7 +97,53 @@ const camPos = new THREE.Vector3();
 
 function step(dt, t) {
   const g = player.group;
-  const mv = input.moveVec();
+  let mv = input.moveVec();
+
+  // zen hit zero → the capybara wanders off to collect itself (no punishment)
+  if (!wander && game.zen <= 0) {
+    napping = false;
+    document.getElementById('btn-nap').classList.remove('napping');
+    const spots = [{ x: 0, z: 4 }, { x: SPRING.x, z: SPRING.z }];
+    spots.sort((a, b) =>
+      Math.hypot(g.position.x - a.x, g.position.z - a.z) -
+      Math.hypot(g.position.x - b.x, g.position.z - b.z));
+    wander = { target: spots[0], t: 0 };
+    game.wanderingOff = true;
+    document.getElementById('vignette').style.opacity = 1;
+    toast('Too much. You wander off to collect yourself… 🍃', 4200);
+  }
+  if (wander) {
+    wander.t += dt;
+    const dx = wander.target.x - g.position.x, dz = wander.target.z - g.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 2.5 && wander.t < 6) {
+      // autopilot expressed in camera space, since movement below is camera-relative
+      const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
+      const fx = -sin, fz = -cos, rx = cos, rz = -sin;
+      mv = { y: (dx * fx + dz * fz) / dist, x: (dx * rx + dz * rz) / dist, len: 0.7 };
+    } else {
+      wander = null;
+      game.wanderingOff = false;
+      game.zen = 55;
+      sound.relief();
+      document.getElementById('vignette').style.opacity = 0;
+      toast('A deep breath. The wetland is still here. 🌿', 3600);
+      mv = { x: 0, y: 0, len: 0 };
+    }
+    input.takeAction(); input.takeSqueak(); input.takeNap(); // ignore inputs mid-stroll
+  }
+
+  // nap toggle
+  if (!wander && input.takeNap()) {
+    sound.start();
+    napping = !napping;
+    document.getElementById('btn-nap').classList.toggle('napping', napping);
+  }
+  if (napping && mv.len > 0.1) {
+    napping = false;
+    document.getElementById('btn-nap').classList.remove('napping');
+  }
+
   const boost = t < game.boostUntil;
   const h = heightAt(g.position.x, g.position.z);
   const swimming = h < -0.05;
@@ -136,20 +185,39 @@ function step(dt, t) {
     game.particles.burst('💧', g.position.clone().add(new THREE.Vector3(0, 0.6, 0)), { count: 6, size: 0.35, up: 2 });
   }
   wasSwimming = nowSwimming;
+  if (nowSwimming && napping) {
+    napping = false;
+    document.getElementById('btn-nap').classList.remove('napping');
+  }
   if (nowSwimming) {
     rippleTimer -= dt;
     if (rippleTimer <= 0) { spawnRipple(g.position.x, g.position.z); rippleTimer = moving ? 0.45 : 1.1; }
   }
   updateRipples(dt);
-  g.position.y = (nowSwimming ? -0.25 : h2) + hopY;
+  g.position.y = (nowSwimming ? -0.25 : h2) + hopY - (napping ? 0.22 : 0);
   player.update(dt, t, moving);
-  // hide leg churn + shadow while swimming
-  for (const L of player.legs) L.visible = !nowSwimming;
+  // hide leg churn + shadow while swimming; tuck legs into the loaf while napping
+  for (const L of player.legs) L.visible = !nowSwimming && !napping;
   player.shadow.visible = !nowSwimming;
+  if (napping) {
+    player.head.rotation.x = 0.32;    // chin down, eyes soft
+    napZZZTimer -= dt;
+    if (napZZZTimer <= 0) {
+      napZZZTimer = 1.7;
+      game.particles.burst('💤', g.position.clone().add(new THREE.Vector3(0.35, 1.05, 0.3)),
+        { count: 1, size: 0.42, up: 0.8, speed: 0.2, life: 1.7, gravity: 0.35, spread: 0.2 });
+    }
+    snoreTimer -= dt;
+    if (snoreTimer <= 0) { snoreTimer = 2.7; sound.snore(); }
+  }
 
   // actions
   if (input.takeAction()) {
     sound.start();
+    if (napping) {
+      napping = false;
+      document.getElementById('btn-nap').classList.remove('napping');
+    }
     const consumed = game.tryAction(g.position);
     if (!consumed) doSqueak(t);
   }
@@ -161,17 +229,20 @@ function step(dt, t) {
   camPitch = Math.max(0.12, Math.min(1.25, camPitch + d.pitch));
   camDist = Math.max(4.5, Math.min(16, camDist + d.zoom));
 
+  napZoom += ((napping ? 2.8 : 0) - napZoom) * Math.min(1, dt * 1.2);
+  const cd = camDist + napZoom;
   camTarget.set(g.position.x, g.position.y + 1.1, g.position.z);
   camPos.set(
-    camTarget.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist,
-    camTarget.y + Math.sin(camPitch) * camDist,
-    camTarget.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist
+    camTarget.x + Math.sin(camYaw) * Math.cos(camPitch) * cd,
+    camTarget.y + Math.sin(camPitch) * cd,
+    camTarget.z + Math.cos(camYaw) * Math.cos(camPitch) * cd
   );
   const minY = Math.max(heightAt(camPos.x, camPos.z) + 0.6, 0.6);
   if (camPos.y < minY) camPos.y = minY;
   camera.position.lerp(camPos, Math.min(1, dt * 7));
   camera.lookAt(camTarget);
 
+  game.napping = napping;
   game.update(dt, t, g, moving, camera);
   world.update(dt, t);
 }
@@ -211,8 +282,8 @@ beginBtn.addEventListener('click', async () => {
   setTimeout(() => {
     if (game && game.followers.length === 0) {
       toast(navigator.maxTouchPoints > 0
-        ? 'Drag left side to walk · drag right side to look · 🐾 to interact, 🎵 to squeak'
-        : 'WASD to walk · drag to look · E to interact · Q to squeak', 7000);
+        ? 'Drag left side to walk · drag right to look · 🐾 interact · 🎵 squeak · 💤 nap'
+        : 'WASD to walk · drag to look · E to interact · Q to squeak · Z to nap', 7000);
     }
   }, 9000);
 });

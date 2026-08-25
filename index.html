@@ -129,6 +129,33 @@
   #friend-dots .dot.joined { background: rgba(255, 205, 100, .3); }
   #friend-dots .dot.home { background: rgba(120, 255, 200, .3); box-shadow: 0 0 8px rgba(120,255,200,.5); }
 
+  /* zen meter */
+  #zen-wrap {
+    position: absolute; top: calc(env(safe-area-inset-top, 0px) + 78px); left: 12px;
+    width: 58px; height: 58px;
+  }
+  #zen-svg { width: 58px; height: 58px; transform: rotate(-90deg); }
+  .zen-bg {
+    fill: rgba(30, 24, 12, .55);
+    stroke: rgba(255,255,255,.14); stroke-width: 5;
+  }
+  #zen-arc {
+    fill: none; stroke: #a8e8c8; stroke-width: 5; stroke-linecap: round;
+    stroke-dasharray: 150.8; stroke-dashoffset: 0;
+    transition: stroke .5s ease;
+  }
+  #zen-face {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+  }
+
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 60;
+    background: radial-gradient(ellipse at center, rgba(30,20,8,0) 42%, rgba(30,20,8,.88) 100%);
+    opacity: 0; transition: opacity .6s ease;
+  }
+
   #inv {
     position: absolute; top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px;
     display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 40vw;
@@ -241,6 +268,11 @@
     right: 108px; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
     width: 58px; height: 58px; font-size: 22px;
   }
+  #btn-nap {
+    right: 52px; bottom: calc(env(safe-area-inset-bottom, 0px) + 118px);
+    width: 58px; height: 58px; font-size: 22px;
+  }
+  #btn-nap.napping { background: rgba(140, 190, 255, .35); }
 
   @media (hover: hover) and (pointer: fine) {
     #btn-action, #btn-squeak { opacity: .75; }
@@ -274,10 +306,20 @@
     <div class="small">Eight friends, one commons, and a sky full of fireflies.</div>
   </div>
 
+  <div id="zen-wrap">
+    <svg id="zen-svg" viewBox="0 0 58 58">
+      <circle class="zen-bg" cx="29" cy="29" r="24"></circle>
+      <circle id="zen-arc" cx="29" cy="29" r="24"></circle>
+    </svg>
+    <span id="zen-face">😌</span>
+  </div>
+
   <div id="joy-base"><div id="joy-thumb"></div></div>
   <button class="action-btn" id="btn-action">🐾</button>
   <button class="action-btn" id="btn-squeak">🎵</button>
+  <button class="action-btn" id="btn-nap">💤</button>
 </div>
+<div id="vignette"></div>
 
 <div id="title-screen">
   <div class="title-block">

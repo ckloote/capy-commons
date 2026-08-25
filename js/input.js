@@ -7,12 +7,14 @@ export class Input {
     this._pinch = null;
     this._action = false;
     this._squeak = false;
+    this._nap = false;
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
       this.keys[e.code] = true;
       if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter') this._action = true;
       if (e.code === 'KeyQ') this._squeak = true;
+      if (e.code === 'KeyZ') this._nap = true;
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
@@ -27,6 +29,7 @@ export class Input {
     };
     press(btnAction, () => { this._action = true; });
     press(btnSqueak, () => { this._squeak = true; });
+    press(document.getElementById('btn-nap'), () => { this._nap = true; });
 
     // pointer handling on the canvas: left 45% = joystick (touch), otherwise camera
     canvas.addEventListener('pointerdown', (e) => {
@@ -102,6 +105,7 @@ export class Input {
   // edge-triggered
   takeAction() { const a = this._action; this._action = false; return a; }
   takeSqueak() { const s = this._squeak; this._squeak = false; return s; }
+  takeNap() { const n = this._nap; this._nap = false; return n; }
   takeCamDeltas() {
     const d = { yaw: this.cam.yawDelta, pitch: this.cam.pitchDelta, zoom: this.cam.zoomDelta };
     this.cam.yawDelta = 0; this.cam.pitchDelta = 0; this.cam.zoomDelta = 0;

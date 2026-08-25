@@ -119,7 +119,70 @@ the design from the strong signals available:
   while paddling). Verified in the pond: ripples + splash + bobbing fish
   item all read nicely together.
 
-### Status: feature-complete
+## 2026-08-25 — The real concept arrives; roadmap
+
+The user relayed the original chat. The reconstruction was close ("pretty
+consistent, a good starting point") but the true spine is different:
+**attraction and calm as the core system**, not fetch quests. Key elements
+from the chat: Zen meter instead of health (stress drains it; hot springs,
+naps, animal piles refill it; "death" = wander off and respawn, no
+punishment); passive recruitment (animals relax around you — ducks nest on
+your head, turtles ride your back; a growing "friendship radius" unlocks
+areas); environmental puzzles via capybara diplomacy (bird scouts from your
+head, weight on switches, capy herds trampling reeds); biomes (marsh, hot
+springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
+"the Gathering", with you as the accidental pilgrim-guide.
+
+### Roadmap (agreed with user)
+
+1. **Zen meter core** ← current phase. Zen resource + HUD ring; regen from
+   idling, hot spring, nearby friends (pile bonus), napping (new 💤 action:
+   curl up, zzz, fast refill, calms nearby animals faster); drain from a
+   prowling ocelot stressor on the east bank (never catches you; slinks off
+   if your procession is big enough); zen=0 → soft vignette, capy wanders
+   off to a calm spot, half refill — no punishment.
+2. **Passive recruitment + friendship radius + stacking.** Generalize the
+   caiman proximity-trust mechanic to every animal (trust fills from
+   proximity × zen; gifts become optional accelerators, ducklings quest
+   stays). Growing calm aura gates skittish species/areas. Attachment
+   slots on capy (head/back/rump) for small critters with spring-sway;
+   new stackables: turtle, frog, songbird, wild capy cousins.
+3. **Biomes.** Region masks in the heightfield: marsh (center), hot-spring
+   terraces (NW), rice paddies (SE), riverbank + current (E), Gathering
+   grove (N). New textures: rice seedlings, mineral terrace, mud, lily pads.
+4. **Diplomacy puzzles**, one per gate: bird-on-head clears mist path;
+   weight switch lowers a log bridge (procession piles on); capy herd
+   tramples the reed wall to the riverbank.
+5. **Narrative framing.** Opening vignette of the Gathering legend, elder
+   capybara NPC as tutorial, finale reworked so *every* creature settles in.
+6. **Persistence & polish.** localStorage save/continue, instancing perf
+   pass, per-biome audio layers, reduce-motion/button-size options.
+
+- **Commit 6 (Phase 1): Zen meter core.**
+  - `zen` (0–100) lives in `game.js`; HUD is a stroke-dashoffset ring around
+    a mood face (😌/🙂/😟/😴) under the friend panel. Color shifts
+    green→amber→coral as it drains.
+  - Regen: idle 1.1/s (0.35 walking), nap 8/s, hot spring +6/s, pile bonus
+    +0.6/s per follower within 7m (cap +4). Finale locks regen high —
+    "a perfect calm settles".
+  - **Nap** (Z / 💤): capybara drops into a legless loaf, chin down, 💤
+    particles float up, soft synth snores, camera dollies out ~3m. Any
+    movement/action/swimming wakes you. Napping beside Old Grim fills his
+    company meter 2.5× — first taste of Phase 2's "napping calms animals".
+  - **Ocelot stressor** (new `fur_ocelot` Gemini texture + builder): prowls
+    a circle on the east bank; within 12m it freezes and stalks (slow creep,
+    never closes past 5m), draining zen with distance falloff. If your
+    procession is ≥3, it retreats instead — attraction as power. One-time
+    toasts teach both rules. Goes 'calmed' at the finale.
+  - **Stress-out**: zen 0 → full vignette, input locked, capy autopilots to
+    the nearest calm spot (spawn meadow or spring), then zen=55, relief
+    chime, "The wetland is still here." No other consequence, per the pitch.
+  - Low-zen vignette creeps in below 35 so danger is felt before it lands.
+  - Headless test run: nap 79.8→99.5 in ~4s ✓, move-to-wake ✓, ocelot
+    stalk drains 45→35.5 ✓, wander-off engages and recovers to 55 ✓,
+    3-friend parade forces retreat ✓, zero JS errors.
+
+### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless
 Chromium renders a few as outlines; real phones/desktops are fine).
