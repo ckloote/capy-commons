@@ -393,6 +393,25 @@ export function createWorld(scene, T) {
     scene.add(slab);
   }
 
+  // butterflies drifting over the meadows
+  const bfCanvas = document.createElement('canvas');
+  bfCanvas.width = bfCanvas.height = 48;
+  const bctx = bfCanvas.getContext('2d');
+  bctx.font = '38px serif';
+  bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
+  bctx.fillText('🦋', 24, 26);
+  const bfTex = new THREE.CanvasTexture(bfCanvas);
+  world.butterflies = [];
+  for (let i = 0; i < 10; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: bfTex, transparent: true, depthWrite: false }));
+    const a = rng() * Math.PI * 2, r = 8 + rng() * 38;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    s.scale.setScalar(0.4);
+    s.userData = { x0: x, z0: z, ph: rng() * 6, sp: 0.4 + rng() * 0.5 };
+    scene.add(s);
+    world.butterflies.push(s);
+  }
+
   // update hook
   let wt = 0;
   world.update = (dt, t) => {
@@ -406,6 +425,12 @@ export function createWorld(scene, T) {
       const p = (t * 0.35 + s.userData.phase) % 3;
       s.position.y = 0.5 + p * 1.2;
       s.material.opacity = 0.26 * (1 - p / 3);
+    }
+    for (const b of world.butterflies) {
+      const u = b.userData;
+      const x = u.x0 + Math.sin(t * u.sp + u.ph) * 6 + Math.sin(t * 1.7 + u.ph * 2) * 0.8;
+      const z = u.z0 + Math.cos(t * u.sp * 0.8 + u.ph) * 6;
+      b.position.set(x, Math.max(heightAt(x, z), 0) + 1 + Math.sin(t * 2.3 + u.ph) * 0.4, z);
     }
   };
 

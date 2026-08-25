@@ -113,6 +113,12 @@ the design from the strong signals available:
   - HUD counter reads "The Gathering is complete 🌙" at 8/8.
   - README.md with controls table and credits for the Gemini textures.
 
+- **Commit 5**: Last delights — 10 butterflies drifting over the meadows
+  (canvas-emoji sprites on sinusoidal wander paths), and expanding ripple
+  rings while the capybara swims (pooled flat ring meshes, faster cadence
+  while paddling). Verified in the pond: ripples + splash + bobbing fish
+  item all read nicely together.
+
 ### Status: feature-complete
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

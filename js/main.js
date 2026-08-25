@@ -64,6 +64,30 @@ function buildGame() {
   animate();
 }
 
+// ---------- swimming ripples ----------
+const rippleGeo = new THREE.RingGeometry(0.42, 0.56, 24);
+const ripples = [];
+let rippleTimer = 0;
+function spawnRipple(x, z) {
+  const m = new THREE.Mesh(rippleGeo, new THREE.MeshBasicMaterial({
+    color: 0xf2fce8, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
+  }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.04, z);
+  scene.add(m);
+  ripples.push({ m, t: 0 });
+}
+function updateRipples(dt) {
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    r.t += dt;
+    if (r.t > 1.2) { scene.remove(r.m); r.m.material.dispose(); ripples.splice(i, 1); continue; }
+    const s = 1 + r.t * 2.4;
+    r.m.scale.set(s, s, 1);
+    r.m.material.opacity = 0.45 * (1 - r.t / 1.2);
+  }
+}
+
 // ---------- player + camera ----------
 const camTarget = new THREE.Vector3();
 const camPos = new THREE.Vector3();
@@ -112,6 +136,11 @@ function step(dt, t) {
     game.particles.burst('💧', g.position.clone().add(new THREE.Vector3(0, 0.6, 0)), { count: 6, size: 0.35, up: 2 });
   }
   wasSwimming = nowSwimming;
+  if (nowSwimming) {
+    rippleTimer -= dt;
+    if (rippleTimer <= 0) { spawnRipple(g.position.x, g.position.z); rippleTimer = moving ? 0.45 : 1.1; }
+  }
+  updateRipples(dt);
   g.position.y = (nowSwimming ? -0.25 : h2) + hopY;
   player.update(dt, t, moving);
   // hide leg churn + shadow while swimming
