@@ -62,6 +62,7 @@ function buildGame() {
     scene, camera, game, world,
     get player() { return player; },
     teleport(x, z) { player.group.position.set(x, Math.max(heightAt(x, z), 0), z); },
+    heightAt,
     setCam(yaw, pitch, dist) { camYaw = yaw; if (pitch !== undefined) camPitch = pitch; if (dist !== undefined) camDist = dist; },
   };
   animate();
@@ -172,6 +173,13 @@ function step(dt, t) {
     while (diff < -Math.PI) diff += Math.PI * 2;
     g.rotation.y += diff * Math.min(1, dt * 10);
     moving = true;
+  }
+
+  // dynamic bodies are solid too: no phasing through the ocelot or friends
+  {
+    const sep = game.separate(g.position.x, g.position.z, 0.5, player);
+    const re = world.collide(sep.x, sep.z, 0.55);
+    g.position.x = re.x; g.position.z = re.z;
   }
 
   // hop physics

@@ -232,7 +232,12 @@ export function createWorld(scene, T) {
     tree.position.set(x, h - 0.1, z);
     tree.rotation.y = rng() * Math.PI * 2;
     scene.add(tree);
-    world.colliders.push({ x, z, r: (palm ? 0.32 : 0.44) * s });
+    // no pinch-pairs: a gap narrower than a tapir is a trap, so keep solid
+    // trunks well apart (visual tree still placed; only the collider is skipped)
+    const tr = (palm ? 0.32 : 0.44) * s;
+    if (!world.colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + tr + 2.2)) {
+      world.colliders.push({ x, z, r: tr });
+    }
   }
 
   // bushes & rocks & reeds & flowers
@@ -270,7 +275,10 @@ export function createWorld(scene, T) {
         rock.position.set(x, h + 0.15, z);
         rock.rotation.set(rng() * 3, rng() * 3, rng() * 3);
         scene.add(rock);
-        if (rockR > 0.45) world.colliders.push({ x, z, r: rockR * 0.85 });
+        if (rockR > 0.45 &&
+            !world.colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + rockR + 2.2)) {
+          world.colliders.push({ x, z, r: rockR * 0.85 });
+        }
       } else {
         // flower: stem + petal blob
         const f = new THREE.Group();
@@ -301,6 +309,11 @@ export function createWorld(scene, T) {
     grove.add(trunk);
     // the trunks lean: at ground level their bases sit near ±1.16, not ±3.4
     world.colliders.push({ x: GROVE.x + side * 1.16, z: GROVE.z, r: 0.85 });
+  }
+  // plug the pocket between the two trunk bases — it was a wedge trap for
+  // big followers (a tapir got stuck in there and broke the win condition)
+  world.colliders.push({ x: GROVE.x, z: GROVE.z, r: 0.9 });
+  for (const side of [-1, 1]) {
     const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(3.1, 1), canopyMat);
     canopy.position.set(side * 1.1, 10.3, 0);
     grove.add(canopy);

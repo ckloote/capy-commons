@@ -179,7 +179,8 @@ export class Game {
       scene.add(cr.group);
       this.ocelot = {
         cr, angle: Math.random() * Math.PI * 2, state: 'prowl',
-        cx: 43, cz: 4, r: 6.5, calmUntil: -99, stungAt: -99, toldOff: false,
+        cx: 41, cz: 2, r: 5.5, calmUntil: -99, stungAt: -99, toldOff: false,
+        landOnly: true,   // cats do not do water
       };
     }
     this._updateHUD();
@@ -472,8 +473,10 @@ export class Game {
         const step = 0.55 * dt;
         const solid = this.world.collide(
           g.position.x + (dx / pd) * step, g.position.z + (dz / pd) * step, 0.5);
-        g.position.x = solid.x;
-        g.position.z = solid.z;
+        if (heightAt(solid.x, solid.z) >= 0.08) {   // stalks along the shore, never in
+          g.position.x = solid.x;
+          g.position.z = solid.z;
+        }
       }
       g.position.y = Math.max(heightAt(g.position.x, g.position.z), 0.02);
       o.cr.update(dt, t, false);
@@ -530,6 +533,26 @@ export class Game {
     }
   }
 
+  // push (x,z) out of dynamic bodies (ocelot + friends); `skip` excludes self
+  separate(x, z, r, skip) {
+    const bump = (bg, br) => {
+      const dx = x - bg.position.x, dz = z - bg.position.z;
+      const min = br + r;
+      if (dx > min || dx < -min || dz > min || dz < -min) return;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= min * min) return;
+      if (d2 === 0) { x += min; return; }   // perfectly stacked: pick a direction
+      const d = Math.sqrt(d2);
+      x += dx * ((min - d) / d);
+      z += dz * ((min - d) / d);
+    };
+    if (this.ocelot && this.ocelot.cr !== skip) bump(this.ocelot.cr.group, 0.55);
+    for (const f of this.friends) {
+      if (f.cr !== skip) bump(f.cr.group, Math.min(f.cr.shadowR, 1.1) * 0.7);
+    }
+    return { x, z };
+  }
+
   _moveToward(fw, target, dt, t, speedMul, maxSpeed) {
     const g = fw.cr.group;
     const dx = target.x - g.position.x, dz = target.z - g.position.z;
@@ -537,13 +560,34 @@ export class Game {
     let moving = false;
     if (dist > 0.25) {
       const sp = Math.min(maxSpeed, dist * speedMul);
-      const solid = this.world.collide(
-        g.position.x + (dx / dist) * sp * dt,
-        g.position.z + (dz / dist) * sp * dt,
-        Math.min(fw.cr.shadowR, 0.8) * 0.7
-      );
-      g.position.x = solid.x;
-      g.position.z = solid.z;
+      let nx = g.position.x + (dx / dist) * sp * dt;
+      let nz = g.position.z + (dz / dist) * sp * dt;
+      if (fw._noClipT > 0) {
+        // wriggling free of a wedge: ignore obstacles briefly
+        fw._noClipT -= dt;
+      } else {
+        const solid = this.world.collide(nx, nz, Math.min(fw.cr.shadowR, 0.8) * 0.7);
+        nx = solid.x; nz = solid.z;
+      }
+      if (fw.landOnly && heightAt(nx, nz) < 0.08) {
+        nx = g.position.x; nz = g.position.z;   // refuse to step into water
+      }
+      // stuck watchdog: intent to move but no progress → wriggle free
+      const stepped = Math.hypot(nx - g.position.x, nz - g.position.z);
+      if (dist > 1.4 && !fw.landOnly) {
+        if (stepped < sp * dt * 0.2) {
+          fw._stuckT = (fw._stuckT || 0) + dt;
+          if (fw._stuckT > 2) {
+            fw._stuckT = 0;
+            fw._noClipT = 1.3;
+            this.particles.burst('💨', g.position.clone().add(new THREE.Vector3(0, 0.8, 0)), { count: 3, size: 0.35 });
+          }
+        } else {
+          fw._stuckT = 0;
+        }
+      }
+      g.position.x = nx;
+      g.position.z = nz;
       const ry = Math.atan2(dx, dz);
       let diff = ry - g.rotation.y;
       while (diff > Math.PI) diff -= Math.PI * 2;

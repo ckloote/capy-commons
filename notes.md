@@ -195,6 +195,30 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
   holds at exactly treeR + playerR (0.91) with no jitter; full playthrough
   regression still green, followers path around obstacles via push-out.
 
+- **Commit 8: Collision bug round** (user-reported from a real phone
+  playthrough at ckloote.github.io — 7/8 with a tapir wedged in the grove).
+  1. *Walking through the ocelot*: new `game.separate()` pushes the player
+     out of dynamic bodies (ocelot + all 8 friends, radii from shadowR),
+     run every frame and re-resolved against static colliders after. Exact
+     zero-distance overlap picks an arbitrary push direction instead of
+     dividing by zero. Verified: held at combined radii (1.05) both when
+     teleported onto the ocelot and when walking into it.
+  2. *Ocelot strolling on the ocean*: `landOnly` flag — it refuses any step
+     onto terrain below 0.08 (prowl, stalk creep, and retreat all clamped),
+     patrol recentered to (41,2) r=5.5 which is fully on land (min height
+     on circle 1.18). Forced ocean-ward retreat never dipped below 0.23.
+  3. *Tapir wedged between trees = unwinnable*: three-layer fix.
+     (a) Generation now skips a tree/rock **collider** (mesh still placed)
+     when another collider is within 2.2 — no more pinch-pairs.
+     (b) The grove's V-base pocket (0.62 gap between trunk colliders — the
+     exact trap in the screenshot) is plugged with a center collider.
+     (c) Stuck watchdog in `_moveToward`: a follower with intent to move
+     that makes <20% expected progress for 2s gets `_noClipT = 1.3s` of
+     ghost-walking toward its target plus a 💨 puff — reads as wriggling
+     free, and guarantees the win condition can't dead-lock. Verified by
+     trapping the tapir between two injected colliders: escaped to 12.4
+     units away. Full playthrough regression green.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless
