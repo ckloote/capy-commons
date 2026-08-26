@@ -433,6 +433,65 @@ export function createWorld(scene, T) {
     scene.add(slab);
   }
 
+  // ---------- chaos zones: legible stress, parked next to something you want ----------
+  world.chaosZones = [
+    { x: -22, z: -26, r: 6.5, kind: 'troupe', emoji: '💢',
+      warning: 'The monkey troupe is having a MOMENT. The screeching frays your zen… 🐒' },
+    { x: 0, z: 43, r: 6, kind: 'midges', emoji: '〰️',
+      warning: 'Midges! A whining cloud of them. Grab what you came for and go. 🦟' },
+  ];
+
+  // troupe tree: one big shaking tree full of upset little monkeys (near the mango)
+  {
+    const zone = world.chaosZones[0];
+    const ty = heightAt(zone.x, zone.z);
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3.6, 6), barkMat);
+    trunk.position.y = 1.8;
+    tree.add(trunk);
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(2.1, 1), canopyMat);
+    crown.position.y = 4.4;
+    tree.add(crown);
+    world.troupeCrown = crown;
+    world.troupeMonkeys = [];
+    const mMat = new THREE.MeshLambertMaterial({ color: 0x4a3a26 });
+    for (let i = 0; i < 4; i++) {
+      const monkey = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), mMat);
+      body.scale.y = 1.2;
+      monkey.add(body);
+      const headM = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mMat);
+      headM.position.y = 0.22;
+      monkey.add(headM);
+      const tailM = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.4, 5), mMat);
+      tailM.position.set(0.12, -0.05, -0.08);
+      tailM.rotation.z = 0.8;
+      monkey.add(tailM);
+      const a = (i / 4) * Math.PI * 2 + 0.4;
+      monkey.position.set(Math.cos(a) * 1.7, 4.2 + (i % 2) * 0.8, Math.sin(a) * 1.7);
+      monkey.userData.phase = i * 1.7;
+      tree.add(monkey);
+      world.troupeMonkeys.push(monkey);
+    }
+    tree.position.set(zone.x, ty, zone.z);
+    scene.add(tree);
+    world.colliders.push({ x: zone.x, z: zone.z, r: 0.55 });
+  }
+
+  // midge cloud over the south mudflat (near the marvelous nut)
+  {
+    const zone = world.chaosZones[1];
+    world.midges = [];
+    const midgeMat = new THREE.SpriteMaterial({ color: 0x2c2418, transparent: true, opacity: 0.8, depthWrite: false });
+    for (let i = 0; i < 18; i++) {
+      const m = new THREE.Sprite(midgeMat.clone());
+      m.scale.setScalar(0.09 + rng() * 0.07);
+      m.userData = { a: rng() * Math.PI * 2, rr: 0.6 + rng() * 2.4, sp: 1.5 + rng() * 2.5, ph: rng() * 6 };
+      scene.add(m);
+      world.midges.push(m);
+    }
+  }
+
   // butterflies drifting over the meadows
   const bfCanvas = document.createElement('canvas');
   bfCanvas.width = bfCanvas.height = 48;
@@ -471,6 +530,29 @@ export function createWorld(scene, T) {
       const x = u.x0 + Math.sin(t * u.sp + u.ph) * 6 + Math.sin(t * 1.7 + u.ph * 2) * 0.8;
       const z = u.z0 + Math.cos(t * u.sp * 0.8 + u.ph) * 6;
       b.position.set(x, Math.max(heightAt(x, z), 0) + 1 + Math.sin(t * 2.3 + u.ph) * 0.4, z);
+    }
+    // troupe tree shakes; monkeys hop with indignation
+    if (world.troupeCrown) {
+      world.troupeCrown.rotation.z = Math.sin(t * 9) * 0.045;
+      world.troupeCrown.rotation.x = Math.cos(t * 7.3) * 0.04;
+      for (const m of world.troupeMonkeys) {
+        m.position.y = 4.2 + (Math.abs(Math.sin(t * 5 + m.userData.phase))) * 0.5;
+        m.rotation.y = Math.sin(t * 3 + m.userData.phase) * 0.8;
+      }
+    }
+    // midges swirl
+    if (world.midges) {
+      const zone = world.chaosZones[1];
+      const zy = Math.max(heightAt(zone.x, zone.z), 0);
+      for (const m of world.midges) {
+        const u = m.userData;
+        u.a += u.sp * 0.016;
+        m.position.set(
+          zone.x + Math.cos(u.a + u.ph) * u.rr,
+          zy + 1 + Math.sin(t * 3 + u.ph) * 0.5,
+          zone.z + Math.sin(u.a * 1.3 + u.ph) * u.rr
+        );
+      }
     }
   };
 

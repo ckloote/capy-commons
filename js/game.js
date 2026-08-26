@@ -117,8 +117,10 @@ export class Game {
     this.ripples = [];
     this.boostUntil = -99;
     this.springToastAt = -99;
-    // zen (phase 1): the only "health" this game has
-    this.zen = 78;
+    // zen (phase 1): the only "health" this game has.
+    // It settles near ZEN_SET (60) on its own; only naps, the spring, and
+    // friend piles push it toward 100 — full calm is prepared, not default.
+    this.zen = 62;
     this.napping = false;        // set by main each frame
     this.zenFaceState = '';
     this.stressed = false;       // ocelot aura active this frame
@@ -497,8 +499,26 @@ export class Game {
 
   // ----- zen -----
   _updateZen(dt, t, player, moving, springD) {
-    let delta = this.napping ? 8 : (moving ? 0.35 : 1.1);
+    // ambient regen is generous below the set point, a trickle above it
+    const belowSet = this.zen < 60;
+    let delta = this.napping ? 8 : (moving ? (belowSet ? 0.3 : 0) : (belowSet ? 1.2 : 0.15));
     if (springD < 3.4) delta += 6;
+    // chaos zones: gentle, legible, and always parked next to something you want
+    for (const zone of this.world.chaosZones) {
+      const zd = Math.hypot(player.position.x - zone.x, player.position.z - zone.z);
+      if (zd < zone.r) {
+        delta -= 2.5;
+        if (!zone.warned) {
+          zone.warned = true;
+          this.sound.stress();
+          toast(zone.warning, 4200);
+        }
+        if (Math.random() < dt * 1.2) {
+          this.particles.burst(zone.emoji, player.position.clone().add(new THREE.Vector3(0, 1.4, 0)),
+            { count: 1, size: 0.4, up: 1.2, life: 1 });
+        }
+      }
+    }
     // the pile bonus: every friend nearby is a little weighted blanket
     let near = 0;
     for (const fw of this.followers) {

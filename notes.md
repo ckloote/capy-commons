@@ -147,6 +147,23 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    stays). Growing calm aura gates skittish species/areas. Attachment
    slots on capy (head/back/rump) for small critters with spring-sway;
    new stackables: turtle, frog, songbird, wild capy cousins.
+
+   **Zen economy decisions (agreed with user, to be built into this phase):**
+   - *Calming costs zen — calm is transferred, not radiated.* While an
+     animal's trust fills near you, zen drains by skittishness tier:
+     mellow (tapir, agouti, caiman) ≈ 3/s for ~8s ≈ 25 zen; shy (otter,
+     duck, monkey, marmoset) ≈ 4.5/s ≈ 35; skittish (heron, wild critters)
+     ≈ 6/s ≈ 50. Full 8-friend run ≈ 250 zen → 4–6 recovery beats/session.
+   - *Skittishness thresholds:* shy species refuse to start a calming
+     session below a zen floor (heron: 65+) — prepare calm before the shy
+     ones. Combined with the 60 set point (landed below), "walk up and
+     wait" only works on mellow tutorial-tier animals.
+   - *Casual-guard rails:* interrupted calming PAUSES trust (never resets);
+     recruitment spending floors at 15 zen (being friendly can never cause
+     a stress-out — only real stressors reach 0); gifts remain the
+     zero-zen instant-join shortcut (fetch route vs. calm route, both
+     gentle); recovery rates are never nerfed — difficulty lives entirely
+     on the demand side.
 3. **Biomes.** Region masks in the heightfield: marsh (center), hot-spring
    terraces (NW), rice paddies (SE), riverbank + current (E), Gathering
    grove (N). New textures: rice seedlings, mineral terrace, mud, lily pads.
@@ -218,6 +235,21 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
      free, and guarantees the win condition can't dead-lock. Verified by
      trapping the tapir between two injected colliders: escaped to 12.4
      units away. Full playthrough regression green.
+
+- **Commit 9: Zen economy groundwork** (challenge-level decisions #2 and
+  #4, landed ahead of Phase 2; #1/#3/#5 documented in the roadmap above).
+  User's concern: zen sat pegged near 100 (only the ocelot drained it), so
+  Phase 2's proximity×zen recruitment would be trivial. Direction agreed:
+  raise *demand* for zen, never nerf recovery — casual, not trivial.
+  - *Equilibrium at 60:* ambient regen is now 1.2/s idle / 0.3 walking
+    below 60, but only 0.15 idle / 0 walking above it. Naps (+8), the
+    spring (+6), and friend piles (+0.6 ea) still push to 100 — full calm
+    is something you prepare, not the default. Starting zen 78→62.
+  - *Two chaos zones,* each parked next to a fetch item so they're route
+    decisions: the monkey troupe's shaking tree (4 indignant bouncing
+    monkeys, right by the mango) and a midge cloud of 18 swirling sprites
+    over the south mudflat (right by the nut). −2.5 zen/s inside, one-time
+    warning toast + stress sting, occasional 💢/〰️ puffs while you linger.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
