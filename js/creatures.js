@@ -31,11 +31,22 @@ export class Creature {
     this.head = opts.head || null;
     this.phase = Math.random() * Math.PI * 2;
     this.speedMul = opts.speedMul ?? 1;
+    this.swimSink = opts.swimSink ?? 0.4;  // group y below the surface when afloat
+    this.swimming = false;                 // set by the mover each frame
     this.moving = 0; // smoothed 0..1
   }
   update(dt, t, moving) {
     this.moving += ((moving ? 1 : 0) - this.moving) * Math.min(1, dt * 8);
     const m = this.moving;
+    if (this.swimming) {
+      // legs are hidden underwater; just a slow float bob
+      if (this.bobPart) {
+        this.bobPart.position.y = this.bobPart.userData.y0 + Math.sin(t * 1.8 + this.phase) * 0.04;
+      }
+      if (this.tail) this.tail.rotation.y = Math.sin(t * 3 + this.phase) * 0.3;
+      if (this.head) this.head.rotation.x = Math.sin(t * 0.7 + this.phase) * 0.06;
+      return;
+    }
     const w = t * 10 * this.speedMul + this.phase;
     for (let i = 0; i < this.legs.length; i++) {
       const dir = i % 2 === 0 ? 1 : -1;
@@ -159,7 +170,7 @@ export function makeTapir(T) {
     L.position.set(sx, 0.6, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, shadowR: 1.3 });
+  return new Creature(g, { legs, bobPart: body, head, shadowR: 1.3, swimSink: 0.8 });
 }
 
 // ---------- Heron ----------
@@ -198,7 +209,7 @@ export function makeHeron(T) {
     L.position.set(sx, 0.85, 0);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 0.8, shadowR: 0.6 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 0.8, shadowR: 0.6, swimSink: 0.95 });
 }
 
 // ---------- Otter ----------
@@ -237,7 +248,7 @@ export function makeOtter(T) {
     L.position.set(sx, 0.22, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3, shadowR: 0.65 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3, shadowR: 0.65, swimSink: 0.4 });
 }
 
 // ---------- Mallard duck & duckling ----------
@@ -269,7 +280,7 @@ export function makeDuck(T) {
     L.position.set(sx, 0.2, 0.05);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4, shadowR: 0.5 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4, shadowR: 0.5, swimSink: 0.22 });
 }
 
 export function makeDuckling() {
@@ -295,7 +306,7 @@ export function makeDuckling() {
     L.position.set(sx, 0.09, 0.02);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, speedMul: 2.2, shadowR: 0.25 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, speedMul: 2.2, shadowR: 0.25, swimSink: 0.1 });
 }
 
 // ---------- Squirrel monkey ----------
@@ -342,7 +353,7 @@ export function makeMonkey(T) {
     L.position.set(sx, 0.3, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.6, shadowR: 0.5 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.6, shadowR: 0.5, swimSink: 0.5 });
 }
 
 // ---------- Agouti ----------
@@ -376,7 +387,7 @@ export function makeAgouti(T) {
     L.position.set(sx, 0.32, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, speedMul: 1.5, shadowR: 0.5 });
+  return new Creature(g, { legs, bobPart: body, head, speedMul: 1.5, shadowR: 0.5, swimSink: 0.4 });
 }
 
 // ---------- Caiman ----------
@@ -421,7 +432,7 @@ export function makeCaiman(T) {
     L.rotation.z = sx > 0 ? -0.5 : 0.5;
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9, shadowR: 1.15 });
+  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9, shadowR: 1.15, swimSink: 0.38 });
 }
 
 // ---------- Marmoset (tiny) ----------
@@ -458,7 +469,7 @@ export function makeMarmoset(T) {
     L.position.set(sx, 0.2, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8, shadowR: 0.35 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8, shadowR: 0.35, swimSink: 0.32 });
 }
 
 // ---------- Ocelot (the wetland's gentle menace — never catches anyone) ----------

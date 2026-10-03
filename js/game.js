@@ -49,6 +49,9 @@ class Particles {
   }
 }
 
+// ---------- swimming ripples ----------
+const rippleGeo = new THREE.RingGeometry(0.42, 0.56, 24);
+
 // ---------- config ----------
 const FRIENDS = [
   { id: 'tapir', name: 'Tobi the Tapir', emoji: '🌺', want: 'flower', space: 2.7,
@@ -219,6 +222,27 @@ export class Game {
     return true;
   }
 
+  // ----- ripples (player + anyone wading or swimming) -----
+  spawnRipple(x, z, size = 1) {
+    const m = new THREE.Mesh(rippleGeo, new THREE.MeshBasicMaterial({
+      color: 0xf2fce8, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
+    }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.04, z);
+    this.scene.add(m);
+    this.ripples.push({ m, t: 0, size });
+  }
+  _updateRipples(dt) {
+    for (let i = this.ripples.length - 1; i >= 0; i--) {
+      const r = this.ripples[i];
+      r.t += dt;
+      if (r.t > 1.2) { this.scene.remove(r.m); r.m.material.dispose(); this.ripples.splice(i, 1); continue; }
+      const s = (1 + r.t * 2.4) * r.size;
+      r.m.scale.set(s, s, 1);
+      r.m.material.opacity = 0.45 * (1 - r.t / 1.2);
+    }
+  }
+
   countDucklingsFollowing() {
     return this.ducklings.filter((d) => d.state === 'following').length;
   }
@@ -275,6 +299,7 @@ export class Game {
   // ----- per-frame -----
   update(dt, t, player, playerMoving, camera) {
     this.particles.update(dt);
+    this._updateRipples(dt);
     this.recordTrail(player.position);
 
     // item pickups + bobbing
@@ -615,9 +640,24 @@ export class Game {
       g.rotation.y += diff * Math.min(1, dt * 8);
       moving = dist > 0.5;
     }
+    // wade on the floor while it's shallow for this species, float once it isn't
+    const cr = fw.cr;
     const h = heightAt(g.position.x, g.position.z);
-    g.position.y = h < 0 ? -0.1 : h;   // swim or walk
-    fw.cr.shadow.visible = h >= 0;
+    const swimming = !fw.landOnly && -h >= cr.swimSink;
+    if (swimming && !cr.swimming) {
+      this.particles.burst('💧', g.position.clone().setY(0.3), { count: 3, size: 0.25, up: 1.6 });
+    }
+    cr.swimming = swimming;
+    g.position.y = swimming ? -cr.swimSink : h;
+    for (const L of cr.legs) L.visible = !swimming;
+    cr.shadow.visible = h >= 0;
+    if (h < -0.02) {
+      fw._rippleT = (fw._rippleT ?? 0) - dt;
+      if (fw._rippleT <= 0) {
+        this.spawnRipple(g.position.x, g.position.z, Math.min(1.3, cr.shadowR) * (swimming ? 1 : 0.7));
+        fw._rippleT = moving ? 0.5 : 1.3;
+      }
+    }
     // squeak-answer hop
     if (fw.hopAt != null && t > fw.hopAt) { fw.hopAt = null; fw.hopV = 3.2; fw.hopY = 0; }
     if (fw.hopV) {

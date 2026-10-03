@@ -251,6 +251,34 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     over the south mudflat (right by the nut). −2.5 zen/s inside, one-time
     warning toast + stress sting, occasional 💢/〰️ puffs while you linger.
 
+- **Commit 10: Followers swim & wade** (issue #1 — "animals walk on the
+  surface of the water"). `_moveToward` clamped any creature in water to
+  y=−0.1 with the walk cycle running, so in the ocean ring (up to 6.3 deep)
+  the whole parade strolled across the top. Measured depths: big pond ≤0.23,
+  NW pond ≤0.75, ocean to 6.3.
+  - Each species now has a `swimSink` (group y below the surface when
+    afloat). Rule: `y = max(h, −swimSink)` — continuous, so no pop at the
+    switch. Shallower than `swimSink` → *wading*: feet on the pond floor,
+    legs walking, water plane covers the shins. Deeper → *swimming*: float
+    at −swimSink, legs hidden (same trick as the player), slow float bob
+    instead of the walk bounce, 💧 splash on entry (particles only — a
+    whole parade's splash sounds would be a wall of noise).
+  - Values put the waterline near each body's centre: tapir 0.8, heron 0.95
+    (stilt legs: wades the entire NW pond, only floats in the ocean), otter
+    0.4, duck 0.22 (floats high), duckling 0.1, monkey 0.5, agouti 0.4,
+    caiman 0.38 (just eyes and back ridge — Old Grim finally *floats*),
+    marmoset 0.32. Ocelot stays `landOnly`.
+  - Ripple rings moved from `main.js` into `Game.spawnRipple(x, z, size)`
+    (the unused `this.ripples` was waiting for it). Followers ripple while
+    wading or swimming, sized by species; the player's cadence is unchanged.
+  - Verified headless (900×600 and 375×667): per-species settle at big pond /
+    NW pond deepest / ocean matches the table; scripted conga walk spawn →
+    big pond → ocean → NW pond had zero followers above water, every
+    follower in deep ocean swimming, ripples peaked at 15 and cleaned up,
+    player ripples still fire. Grove regression: 8/8 homed, 8 runes, finale.
+    Zero JS errors. Not changed: the player still uses its old fixed −0.25
+    swim (never wades) — could adopt the same rule later.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless
