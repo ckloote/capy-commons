@@ -210,7 +210,7 @@ function step(dt, t) {
       napping = false;
       document.getElementById('btn-nap').classList.remove('napping');
     }
-    const consumed = game.tryAction(g.position);
+    const consumed = game.tryAction(g.position, t);
     if (!consumed) doSqueak(t);
   }
   if (input.takeSqueak()) { sound.start(); doSqueak(t); }

@@ -33,7 +33,20 @@ export class Creature {
     this.speedMul = opts.speedMul ?? 1;
     this.swimSink = opts.swimSink ?? 0.4;  // group y below the surface when afloat
     this.swimming = false;                 // set by the mover each frame
+    this.neck = opts.neck || null;         // { y, z, r, tilt, squash } necklace anchor
+    this.necklace = null;
     this.moving = 0; // smoothed 0..1
+  }
+  wearNecklace() {
+    if (this.necklace || !this.neck) return false;
+    const { y, z, r, tilt = 0, squash = 1 } = this.neck;
+    const n = makeNecklace(r);
+    n.position.set(0, y, z);
+    n.rotation.x = tilt;     // tip the ring's axis forward to follow the neck
+    n.scale.z = squash;      // flatten for wide, low necks (caiman)
+    this.group.add(n);
+    this.necklace = n;
+    return true;
   }
   update(dt, t, moving) {
     this.moving += ((moving ? 1 : 0) - this.moving) * Math.min(1, dt * 8);
@@ -83,6 +96,29 @@ function blobShadow(r) {
   m.position.y = 0.06;
   m.renderOrder = 1;
   return m;
+}
+
+// flower necklace: a ring of little petal beads in mixed colours
+const LEI_COLORS = [0xff8fb0, 0xffe066, 0xfff4e8, 0xff9a5c, 0xc9a2ff];
+let leiMats = null, beadGeo = null;
+export function makeNecklace(r) {
+  if (!leiMats) {
+    leiMats = LEI_COLORS.map((c) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.18 }));
+    beadGeo = new THREE.IcosahedronGeometry(1, 0);
+  }
+  const g = new THREE.Group();
+  const n = Math.max(10, Math.round(r * 46));
+  const off = Math.floor(Math.random() * leiMats.length);
+  const br = Math.max(0.04, r * 0.22);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const b = new THREE.Mesh(beadGeo, leiMats[(i + off) % leiMats.length]);
+    b.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    b.scale.set(br, br * 0.75, br);
+    b.rotation.set(i * 1.3, i * 2.1, 0);
+    g.add(b);
+  }
+  return g;
 }
 
 function leg(matl, r, h) {
@@ -170,7 +206,8 @@ export function makeTapir(T) {
     L.position.set(sx, 0.6, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, shadowR: 1.3, swimSink: 0.8 });
+  return new Creature(g, { legs, bobPart: body, head, shadowR: 1.3, swimSink: 0.8,
+    neck: { y: 1.0, z: 1.0, r: 0.46, tilt: 1.0 } });
 }
 
 // ---------- Heron ----------
@@ -209,7 +246,8 @@ export function makeHeron(T) {
     L.position.set(sx, 0.85, 0);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 0.8, shadowR: 0.6, swimSink: 0.95 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 0.8, shadowR: 0.6, swimSink: 0.95,
+    neck: { y: 1.3, z: 0.27, r: 0.15, tilt: 0.5 } });
 }
 
 // ---------- Otter ----------
@@ -248,7 +286,8 @@ export function makeOtter(T) {
     L.position.set(sx, 0.22, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3, shadowR: 0.65, swimSink: 0.4 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3, shadowR: 0.65, swimSink: 0.4,
+    neck: { y: 0.58, z: 0.42, r: 0.25, tilt: 1.2 } });
 }
 
 // ---------- Mallard duck & duckling ----------
@@ -280,7 +319,8 @@ export function makeDuck(T) {
     L.position.set(sx, 0.2, 0.05);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4, shadowR: 0.5, swimSink: 0.22 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4, shadowR: 0.5, swimSink: 0.22,
+    neck: { y: 0.58, z: 0.25, r: 0.14, tilt: 0.3 } });
 }
 
 export function makeDuckling() {
@@ -353,7 +393,8 @@ export function makeMonkey(T) {
     L.position.set(sx, 0.3, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.6, shadowR: 0.5, swimSink: 0.5 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.6, shadowR: 0.5, swimSink: 0.5,
+    neck: { y: 0.66, z: 0.04, r: 0.15, tilt: 0.15 } });
 }
 
 // ---------- Agouti ----------
@@ -387,7 +428,8 @@ export function makeAgouti(T) {
     L.position.set(sx, 0.32, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, speedMul: 1.5, shadowR: 0.5, swimSink: 0.4 });
+  return new Creature(g, { legs, bobPart: body, head, speedMul: 1.5, shadowR: 0.5, swimSink: 0.4,
+    neck: { y: 0.52, z: 0.25, r: 0.14, tilt: 0.6 } });
 }
 
 // ---------- Caiman ----------
@@ -432,7 +474,8 @@ export function makeCaiman(T) {
     L.rotation.z = sx > 0 ? -0.5 : 0.5;
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9, shadowR: 1.15, swimSink: 0.38 });
+  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9, shadowR: 1.15, swimSink: 0.38,
+    neck: { y: 0.3, z: 0.62, r: 0.33, tilt: Math.PI / 2, squash: 0.65 } });
 }
 
 // ---------- Marmoset (tiny) ----------
@@ -469,7 +512,8 @@ export function makeMarmoset(T) {
     L.position.set(sx, 0.2, sz);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8, shadowR: 0.35, swimSink: 0.32 });
+  return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.8, shadowR: 0.35, swimSink: 0.32,
+    neck: { y: 0.44, z: 0.03, r: 0.1, tilt: 0.15 } });
 }
 
 // ---------- Ocelot (the wetland's gentle menace — never catches anyone) ----------

@@ -158,6 +158,8 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    through the parade and finale. Needs the inventory to count items
    (currently one yes/no flag per item). The pick → craft → give → wear
    part doesn't depend on trust and can ship early as a small win.
+   ✅ Early part shipped in commit 12; still to do with Phase 2: the
+   necklace's real trust boost once every animal has a trust meter.
 
    **Zen economy decisions (agreed with user, to be built into this phase):**
    - *Calming costs zen — calm is transferred, not radiated.* While an
@@ -318,6 +320,37 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
   sound only on entering swim depth. Verified headless: big pond wades
   (y = h = −0.18, legs on), NW pond deep + ocean float at −0.45 legs off,
   nap holds while wading and breaks while swimming, zero JS errors.
+
+- **Commit 12: Flower necklaces, early part** (issue #4, from the user's
+  nine-year-old). Pick → craft → give → wear, ahead of Phase 2's trust system.
+  - *Flowers:* the existing decorative flowers are now pickable, plus 9 new
+    5-flower patches (own `mulberry(4)` rng so the main layout is untouched;
+    pink/white/yellow/lilac tints), one at (3,−9) in view from spawn. 65
+    flowers total. Walk within 1.3 to pick — walking through a patch picks
+    it all. Picked flowers regrow after 75s with a little overshoot pop.
+  - *Crafting:* automatic — every 3 flowers become a 📿. HUD chips show
+    `🌼n/3` and `📿`. One-time teaching toasts for the first pick and the
+    first necklace (key label adapts: E on desktop, 🐾 on touch).
+  - *Giving:* E / 🐾 near any of the 8 friends (waiting, following, or home)
+    without one. Species gifts still take priority (have the fish → Hana is
+    befriended, necklace kept). The prompt card offers it. Effect: the
+    friend wears it, 🌸💛 burst, a high join-chord, +10 zen ("giving feels
+    good"), followers hop, and each friend has their own line. **Not** a
+    befriend — until Phase 2's trust meters exist, its one gameplay hook
+    is Old Grim: +2s on his 4s company meter.
+  - *Wearing:* `makeNecklace(r)` in `creatures.js` — a ring of
+    flattened icosahedron beads in 5 lei colours; per-species `neck`
+    anchor `{ y, z, r, tilt, squash }` on the Creature (caiman's ring stands
+    vertical and is squashed to his flat body). Tuned from close-up front
+    and side renders of all 8; the tapir's and otter's first guesses were
+    buried inside their bodies and were moved out to where head meets body.
+  - Verified headless (900×600, 375×667): 19 scripted checks covering
+    flower count, the spawn-view patch, pick/hide, the 3→1 craft rule, the
+    HUD chips, the prompt card for waiting and following friends, wear +
+    zen, species-gift priority, Old Grim's boost, the normal hint once
+    necklaces run out, and regrowth. Zero JS errors.
+  - Not yet: ducklings and the ocelot can't receive one (ideas: a tiny
+    duckling lei; a necklaced ocelot that stays calm for a while).
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

@@ -190,6 +190,21 @@ export function createWorld(scene, T) {
     Math.hypot(x, z) > 7
   );
 
+  // flower: stem + petal blob; pickable, regrows after a while
+  const stemMat = new THREE.MeshLambertMaterial({ color: 0x54793c });
+  function addFlower(x, h, z, mat) {
+    const g = new THREE.Group();
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.55, 4), stemMat);
+    stem.position.y = 0.27;
+    g.add(stem);
+    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), mat);
+    head.position.y = 0.6;
+    g.add(head);
+    g.position.set(x, h, z);
+    scene.add(g);
+    world.flowers.push({ g, x, z, picked: false, regrowAt: 0, grow: 1 });
+  }
+
   function makeTree(s, palm) {
     const g = new THREE.Group();
     if (palm) {
@@ -280,18 +295,29 @@ export function createWorld(scene, T) {
           world.colliders.push({ x, z, r: rockR * 0.85 });
         }
       } else {
-        // flower: stem + petal blob
-        const f = new THREE.Group();
-        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.55, 4),
-          new THREE.MeshLambertMaterial({ color: 0x54793c }));
-        stem.position.y = 0.27;
-        f.add(stem);
-        const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), petalMat);
-        head.position.y = 0.6;
-        f.add(head);
-        f.position.set(x, h, z);
-        scene.add(f);
-        world.flowers.push(head);
+        addFlower(x, h, z, petalMat);
+      }
+    }
+  }
+
+  // flower patches for necklace-making (own rng so the layout above is untouched)
+  {
+    const frng = mulberry(4);
+    const tints = [petalMat, ...[0xffc4dc, 0xfff0a0, 0xdcc8ff].map((c) =>
+      new THREE.MeshLambertMaterial({ map: petalMat.map, color: c }))];
+    const centres = [[3, -9]];   // one in view from spawn
+    for (let tries = 0; centres.length < 9 && tries < 200; tries++) {
+      const a = frng() * Math.PI * 2, r = 10 + frng() * (ISLAND_R - 20);
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (heightAt(x, z) > 0.6 && clearOf(x, z) &&
+          !centres.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < 12)) centres.push([x, z]);
+    }
+    for (const [cx, cz] of centres) {
+      const mat = tints[Math.floor(frng() * tints.length)];
+      for (let k = 0; k < 5; k++) {
+        const x = cx + (frng() - 0.5) * 3.6, z = cz + (frng() - 0.5) * 3.6;
+        const h = heightAt(x, z);
+        if (h > 0.4 && world.collide(x, z, 0.3).x === x) addFlower(x, h, z, mat);
       }
     }
   }
@@ -519,6 +545,15 @@ export function createWorld(scene, T) {
     portalRing.rotation.z = t * 0.4;
     const pulse = 0.5 + 0.5 * Math.sin(t * 2);
     portalRing.material.opacity = world.portalOpen ? 0.95 : 0.35 + pulse * 0.25;
+    // picked flowers pop back up
+    for (const f of world.flowers) {
+      if (f.picked && t > f.regrowAt) { f.picked = false; f.grow = 0; f.g.visible = true; }
+      if (!f.picked && f.grow < 1) {
+        f.grow = Math.min(1, f.grow + dt * 1.5);
+        const k = f.grow;
+        f.g.scale.setScalar(Math.max(0.01, k + 0.35 * Math.sin(k * Math.PI)));   // little overshoot pop
+      }
+    }
     for (const y of world.yuzu) y.position.y = 0.2 + Math.sin(t * 1.6 + y.userData.phase) * 0.06;
     for (const s of world.steam) {
       const p = (t * 0.35 + s.userData.phase) % 3;

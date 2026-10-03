@@ -56,28 +56,36 @@ const rippleGeo = new THREE.RingGeometry(0.42, 0.56, 24);
 const FRIENDS = [
   { id: 'tapir', name: 'Tobi the Tapir', emoji: '🌺', want: 'flower', space: 2.7,
     pos: [18, -28], ask: 'Tobi sniffs the air dreamily. He has smelled a sweet flower somewhere in the meadows…',
-    thanks: 'Tobi tucks the flower behind his ear. He lumbers happily into line!' },
+    thanks: 'Tobi tucks the flower behind his ear. He lumbers happily into line!',
+    necklace: 'Tobi lowers his big head so you can reach. He wears the necklace with enormous dignity.' },
   { id: 'heron', name: 'Hana the Heron', emoji: '🐟', want: 'fish', space: 2.1,
     pos: [31, 6], ask: 'Hana stands perfectly still. "A silver fish glints in the pond shallows. My old wings miss the dive…"',
-    thanks: 'Hana swallows the fish in one elegant gulp. She strides after you on stilt legs!' },
+    thanks: 'Hana swallows the fish in one elegant gulp. She strides after you on stilt legs!',
+    necklace: 'Hana arches her long neck. "Oh, it suits me," she says — and it really does.' },
   { id: 'otter', name: 'Rio the Otter', emoji: '🪨', want: 'skipstone', space: 1.8,
     pos: [-14, 30], ask: 'Rio juggles nothing. "Lost my lucky skipping stone! Flat, smooth, somewhere up the stone trail north of the meadow."',
-    thanks: 'Rio skips the stone across the water — four bounces! He tumbles into line, chittering.' },
+    thanks: 'Rio skips the stone across the water — four bounces! He tumbles into line, chittering.',
+    necklace: 'Rio spins in a circle to show the necklace to absolutely everyone.' },
   { id: 'duck', name: 'Mabel the Mallard', emoji: '🐥', want: 'ducklings', space: 1.6,
     pos: [21, 22], ask: 'Mabel is beside herself. "My three ducklings wandered off! Please, bring them waddling back."',
-    thanks: 'Mabel counts her ducklings twice, then quacks the happiest quack you have ever heard.' },
+    thanks: 'Mabel counts her ducklings twice, then quacks the happiest quack you have ever heard.',
+    necklace: 'Mabel quacks with delight. The ducklings are extremely jealous.' },
   { id: 'monkey', name: 'Miko the Monkey', emoji: '🥭', want: 'mango', space: 1.8,
     pos: [-34, 16], ask: 'Miko swings down. "Mango. MANGO. There is one under a tree to the northwest and it is calling to me."',
-    thanks: 'Miko cradles the mango like treasure and scampers into line behind you!' },
+    thanks: 'Miko cradles the mango like treasure and scampers into line behind you!',
+    necklace: 'Miko tries to eat one petal, then decides the necklace is better for wearing.' },
   { id: 'agouti', name: 'Pip the Agouti', emoji: '🌰', want: 'nut', space: 1.5,
     pos: [8, 38], ask: 'Pip twitches. "I buried a marvelous nut. Somewhere. North-ish? It is gone. This is a catastrophe."',
-    thanks: 'Pip stuffs the nut in one cheek. It is enormous. Pip is thrilled.' },
+    thanks: 'Pip stuffs the nut in one cheek. It is enormous. Pip is thrilled.',
+    necklace: 'Pip pats the necklace over and over. "Mine? Truly? MINE?"' },
   { id: 'caiman', name: 'Old Grim the Caiman', emoji: '🧘', want: 'company', space: 2.7,
     pos: [38, -10], ask: 'Old Grim says nothing. He simply floats. Perhaps he just wants… quiet company. (Stay close a while.)',
-    thanks: 'Old Grim opens one golden eye. "…fine," he rumbles, and drifts after you like a very slow torpedo.' },
+    thanks: 'Old Grim opens one golden eye. "…fine," he rumbles, and drifts after you like a very slow torpedo.',
+    necklace: 'Old Grim says nothing. But he does not take it off, and his golden eye looks a little softer.' },
   { id: 'marmoset', name: 'Luna the Marmoset', emoji: '🫐', want: 'berry', space: 1.4,
     pos: [-38, -20], ask: 'Luna, tiny and serious: "One berry. The plump kind that grows in the northwest woods. Then I am yours."',
-    thanks: 'Luna eats the berry in seventeen rapid bites and climbs onto the parade!' },
+    thanks: 'Luna eats the berry in seventeen rapid bites and climbs onto the parade!',
+    necklace: 'Luna, tiny and serious, adjusts her necklace until it is exactly right.' },
 ];
 
 const ITEMS = [
@@ -93,6 +101,7 @@ const DUCKLING_SPOTS = [[33, 2], [12, 28], [30, 27]];
 
 // ---------- UI helpers ----------
 const $ = (id) => document.getElementById(id);
+const actKey = () => (navigator.maxTouchPoints > 0 ? '🐾' : 'E');
 let toastTimer = null;
 export function toast(msg, ms = 3200) {
   const el = $('toast');
@@ -112,6 +121,8 @@ export class Game {
     this.items = [];
     this.ducklings = [];
     this.inventory = {};
+    this.flowerCount = 0;     // meadow flowers in paw; 3 → a necklace
+    this.necklaces = 0;
     this.followers = [];      // creatures currently in the conga line
     this.homed = 0;
     this.finaleStarted = false;
@@ -258,27 +269,88 @@ export class Game {
     return best;
   }
 
-  tryAction(playerPos) {
-    const f = this.nearestActionable(playerPos);
-    if (!f) return false;
+  _canSatisfy(f) {
     const want = f.cfg.want;
-    if (want === 'company') return true; // handled passively
-    let ok = false;
-    if (want === 'ducklings') ok = this.countDucklingsFollowing() >= 3;
-    else ok = !!this.inventory[want];
-    if (ok) {
-      if (want === 'ducklings') {
+    if (want === 'company') return false;   // handled passively
+    if (want === 'ducklings') return this.countDucklingsFollowing() >= 3;
+    return !!this.inventory[want];
+  }
+
+  // who a necklace would go to: the friend you're talking to, else the nearest bare neck
+  _necklaceTarget(playerPos, talking) {
+    if (this.necklaces <= 0) return null;
+    if (talking && !talking.cr.necklace) return talking;
+    let best = null, bestD = 4.2;
+    for (const f of this.friends) {
+      if (f.cr.necklace) continue;
+      const d = f.cr.group.position.distanceTo(playerPos);
+      if (d < bestD) { best = f; bestD = d; }
+    }
+    return best;
+  }
+
+  tryAction(playerPos, t = 0) {
+    const f = this.nearestActionable(playerPos);
+    if (f && this._canSatisfy(f)) {
+      if (f.cfg.want === 'ducklings') {
         for (const d of this.ducklings) d.state = 'withDuck';
       } else {
-        delete this.inventory[want];
+        delete this.inventory[f.cfg.want];
       }
       this._befriend(f);
+      this._updateHUD();
+      return true;
+    }
+    const giveTo = this._necklaceTarget(playerPos, f);
+    if (giveTo) { this._giveNecklace(giveTo, t); return true; }
+    if (!f) return false;
+    if (f.cfg.want === 'company') return true;
+    this.sound.denied();
+    toast(f.cfg.emoji + '  ' + hintFor(f.cfg));
+    return true;
+  }
+
+  // ----- flower necklaces -----
+  _pickFlower(fl, t, player) {
+    fl.picked = true;
+    fl.g.visible = false;
+    fl.regrowAt = t + 75;
+    this.flowerCount++;
+    this.particles.burst('🌼', fl.g.position.clone().add(new THREE.Vector3(0, 0.7, 0)),
+      { count: 3, size: 0.3, up: 1.4, life: 0.8 });
+    if (this.flowerCount >= 3) {
+      this.flowerCount -= 3;
+      this.necklaces++;
+      this.sound.rune();
+      this.particles.burst('📿', player.position.clone().add(new THREE.Vector3(0, 1.3, 0)),
+        { count: 1, size: 0.7, up: 1.2, life: 1.5, spread: 0 });
+      toast(this.necklaceTold
+        ? 'Another flower necklace! 📿'
+        : `You weave three flowers into a necklace! 📿 Walk up to a friend and press ${actKey()} to give it.`, 4800);
+      this.necklaceTold = true;
     } else {
-      this.sound.denied();
-      toast(f.cfg.emoji + '  ' + hintFor(f.cfg));
+      this.sound.pickup();
+      if (!this.flowerTold) {
+        this.flowerTold = true;
+        toast('You pick a flower 🌼 — three make a necklace!');
+      }
     }
     this._updateHUD();
-    return true;
+  }
+
+  _giveNecklace(f, t) {
+    this.necklaces--;
+    f.cr.wearNecklace();
+    this.sound.friendJoin(5 + Math.floor(Math.random() * 3));
+    const above = f.cr.group.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+    this.particles.burst('🌸', above, { count: 8, size: 0.4 });
+    this.particles.burst('💛', above, { count: 3, size: 0.4 });
+    this.zen = Math.min(100, this.zen + 10);   // giving feels good
+    // the one trust meter that exists today: a necklace is good company
+    if (f.state === 'waiting' && f.cfg.want === 'company') f.companyTime += 2;
+    if (f.state === 'following') f.hopAt = t + 0.1;
+    toast(f.cfg.necklace, 4500);
+    this._updateHUD();
   }
 
   _befriend(f) {
@@ -315,6 +387,13 @@ export class Game {
         toast(`You found ${it.cfg.name}! ${it.cfg.emoji}`);
         this._updateHUD();
       }
+    }
+
+    // meadow flowers: walk through them to pick; three make a necklace
+    for (const fl of this.world.flowers) {
+      if (fl.picked) continue;
+      const dx = fl.x - player.position.x, dz = fl.z - player.position.z;
+      if (dx * dx + dz * dz < 1.69) this._pickFlower(fl, t, player);
     }
 
     // lost ducklings: run to player when near, then follow loosely
@@ -679,11 +758,19 @@ export class Game {
   _updatePrompt(playerPos) {
     const card = $('prompt-card');
     const f = this.nearestActionable(playerPos);
-    if (!f) { card.classList.remove('show'); return; }
+    const giveTo = f && this._canSatisfy(f) ? null : this._necklaceTarget(playerPos, f);
+    if (!f && !giveTo) { card.classList.remove('show'); return; }
     card.classList.add('show');
-    $('prompt-name').textContent = f.cfg.name;
-    $('prompt-line').textContent = f.cfg.ask;
+    const giveLine = `📿 Press ${actKey()} to give a flower necklace.`;
     const bar = $('prompt-progress');
+    if (!f) {
+      $('prompt-name').textContent = giveTo.cfg.name;
+      $('prompt-line').textContent = giveLine;
+      bar.style.display = 'none';
+      return;
+    }
+    $('prompt-name').textContent = f.cfg.name;
+    $('prompt-line').textContent = giveTo === f ? `${f.cfg.ask}  ${giveLine}` : f.cfg.ask;
     if (f.cfg.want === 'company') {
       bar.style.display = 'block';
       bar.firstElementChild.style.width = Math.min(100, (f.companyTime / 4) * 100) + '%';
@@ -707,21 +794,19 @@ export class Game {
     }
     const inv = $('inv');
     inv.innerHTML = '';
-    for (const it of ITEMS) {
-      if (this.inventory[it.id]) {
-        const c = document.createElement('span');
-        c.className = 'chip';
-        c.textContent = it.emoji;
-        inv.appendChild(c);
-      }
-    }
-    const dn = this.countDucklingsFollowing();
-    if (dn > 0 && this.friends.find((f) => f.cfg.id === 'duck').state === 'waiting') {
+    const chip = (text) => {
       const c = document.createElement('span');
       c.className = 'chip';
-      c.textContent = '🐥×' + dn;
+      c.textContent = text;
       inv.appendChild(c);
+    };
+    for (const it of ITEMS) {
+      if (this.inventory[it.id]) chip(it.emoji);
     }
+    if (this.flowerCount > 0) chip(`🌼${this.flowerCount}/3`);
+    if (this.necklaces > 0) chip(this.necklaces > 1 ? `📿×${this.necklaces}` : '📿');
+    const dn = this.countDucklingsFollowing();
+    if (dn > 0 && this.friends.find((f) => f.cfg.id === 'duck').state === 'waiting') chip('🐥×' + dn);
   }
 
   squeak(player, t) {

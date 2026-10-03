@@ -29,6 +29,10 @@ to sit right next to things you want. Hit zero and nothing bad happens: you
 just wander off to somewhere calmer and collect yourself. A big enough
 parade makes the ocelot think better of it entirely.
 
+**Flower necklaces:** walk through the meadow flowers to pick them — three
+make a necklace 📿. Walk up to any friend and press E / 🐾 to give it; they
+wear it for the rest of the game. Picked flowers grow back.
+
 Capybaras can swim. The hot spring in the west does something nice.
 Squeak near your parade and see what happens.
 
