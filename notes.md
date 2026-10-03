@@ -135,7 +135,7 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
 
 ### Roadmap (agreed with user)
 
-1. **Zen meter core** ← current phase. Zen resource + HUD ring; regen from
+1. **Zen meter core** ✅ (commits 6, 9). Zen resource + HUD ring; regen from
    idling, hot spring, nearby friends (pile bonus), napping (new 💤 action:
    curl up, zzz, fast refill, calms nearby animals faster); drain from a
    prowling ocelot stressor on the east bank (never catches you; slinks off
@@ -146,7 +146,18 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    proximity × zen; gifts become optional accelerators, ducklings quest
    stays). Growing calm aura gates skittish species/areas. Attachment
    slots on capy (head/back/rump) for small critters with spring-sway;
-   new stackables: turtle, frog, songbird, wild capy cousins.
+   new stackables: turtle, frog, songbird, wild capy cousins. ← next phase.
+
+   **Flower necklaces (issue #4).** The capy picks the flowers already
+   scattered around the island (`world.flowers`: stem + petal head, placed
+   today but not yet interactive); 3 flowers make 1 necklace; give it to any
+   animal. Species-specific gifts stay the instant-join shortcut; the
+   necklace is the *universal* gift, a big zero-zen trust boost (not an
+   instant join, so it doesn't make calming pointless). The necklace
+   shows up on the animal (a ring of petal blobs at the neck) and stays on
+   through the parade and finale. Needs the inventory to count items
+   (currently one yes/no flag per item). The pick → craft → give → wear
+   part doesn't depend on trust and can ship early as a small win.
 
    **Zen economy decisions (agreed with user, to be built into this phase):**
    - *Calming costs zen — calm is transferred, not radiated.* While an
@@ -164,12 +175,31 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
      zero-zen instant-join shortcut (fetch route vs. calm route, both
      gentle); recovery rates are never nerfed — difficulty lives entirely
      on the demand side.
-3. **Biomes.** Region masks in the heightfield: marsh (center), hot-spring
-   terraces (NW), rice paddies (SE), riverbank + current (E), Gathering
-   grove (N). New textures: rice seedlings, mineral terrace, mud, lily pads.
+3. **Biomes as an archipelago (issue #2: "MORE ISLANDS").** Biomes become
+   their own islands instead of region masks on one island: the home
+   island keeps the marsh + Gathering grove (N); hot-spring terraces, rice
+   paddies, and riverbank + current become small neighbour islands across
+   the water. New textures: rice seedlings, mineral terrace, mud, lily pads.
+   Travel is swimming (commits 10–11 made the whole parade swim) or the
+   dolphin ferry (Phase 4). Engineering: `heightAt` gets one dome per
+   island (today it's a single dome sized by `ISLAND_R`); terrain becomes
+   one mesh per island (today a single 170×170 plane); the player clamp
+   (`ISLAND_R + 4` in `main.js`) becomes an outer-sea bound; fog far
+   (210) and water plane (500) re-checked so neighbours read on the
+   horizon. Watch swim length: the ocean is ~6 deep and featureless.
 4. **Diplomacy puzzles**, one per gate: bird-on-head clears mist path;
    weight switch lowers a log bridge (procession piles on); capy herd
    tramples the reed wall to the riverbank.
+
+   **Stranded dolphin (issue #3), the first puzzle.** A dolphin is stuck
+   on the sand. Too heavy for one capybara, so bring a big enough parade
+   (≈4) and push together to slide it back into the sea. It can't join the
+   parade (sea-only), so it fits as a puzzle where parade size matters, like
+   the weight switch. Reward: it waits offshore, and swimming out to it
+   ferries you (parade swimming behind) to the next island, which is the
+   travel link for Phase 3's archipelago. Fallback if wanted sooner: a
+   standalone rescue + thank-you scene could ship in Phase 2 with no
+   ferry dependency.
 5. **Narrative framing.** Opening vignette of the Gathering legend, elder
    capybara NPC as tutorial, finale reworked so *every* creature settles in.
 6. **Persistence & polish.** localStorage save/continue, instancing perf
