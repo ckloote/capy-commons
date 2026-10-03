@@ -124,8 +124,9 @@ function step(dt, t) {
 
   const boost = t < game.boostUntil;
   const h = heightAt(g.position.x, g.position.z);
-  const swimming = h < -0.05;
-  let speed = (swimming ? 4.2 : 6) * (boost ? 1.55 : 1);
+  const swimming = -h >= player.swimSink;
+  const wading = !swimming && h < -0.02;
+  let speed = (swimming ? 4.2 : wading ? 5 : 6) * (boost ? 1.55 : 1);
 
   let moving = false;
   if (mv.len > 0.05) {
@@ -165,8 +166,9 @@ function step(dt, t) {
     if (hopY <= 0) { hopY = 0; hopV = 0; }
   }
 
+  // same rule as the parade: wade on the floor while shallow, float once deep
   const h2 = heightAt(g.position.x, g.position.z);
-  const nowSwimming = h2 < -0.05;
+  const nowSwimming = -h2 >= player.swimSink;
   if (nowSwimming && !wasSwimming) {
     sound.splash();
     game.particles.burst('💧', g.position.clone().add(new THREE.Vector3(0, 0.6, 0)), { count: 6, size: 0.35, up: 2 });
@@ -176,15 +178,19 @@ function step(dt, t) {
     napping = false;
     document.getElementById('btn-nap').classList.remove('napping');
   }
-  if (nowSwimming) {
+  if (h2 < -0.02) {
     rippleTimer -= dt;
-    if (rippleTimer <= 0) { game.spawnRipple(g.position.x, g.position.z); rippleTimer = moving ? 0.45 : 1.1; }
+    if (rippleTimer <= 0) {
+      game.spawnRipple(g.position.x, g.position.z, nowSwimming ? 1 : 0.7);
+      rippleTimer = moving ? 0.45 : 1.1;
+    }
   }
-  g.position.y = (nowSwimming ? -0.25 : h2) + hopY - (napping ? 0.22 : 0);
+  g.position.y = (nowSwimming ? -player.swimSink : h2) + hopY - (napping ? 0.22 : 0);
+  player.swimming = nowSwimming;
   player.update(dt, t, moving);
-  // hide leg churn + shadow while swimming; tuck legs into the loaf while napping
+  // hide leg churn while swimming; tuck legs into the loaf while napping
   for (const L of player.legs) L.visible = !nowSwimming && !napping;
-  player.shadow.visible = !nowSwimming;
+  player.shadow.visible = h2 >= 0;
   if (napping) {
     player.head.rotation.x = 0.32;    // chin down, eyes soft
     napZZZTimer -= dt;

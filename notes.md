@@ -279,6 +279,16 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     Zero JS errors. Not changed: the player still uses its old fixed −0.25
     swim (never wades) — could adopt the same rule later.
 
+- **Commit 11: The capybara wades too.** Player now uses the parade's
+  rule with `swimSink` 0.45 (head and back above water — a bit lower than
+  the old −0.25, matching the friends). Shallow water = wade: legs visible,
+  feet on the floor, 5 speed (between land 6 and swim 4.2), smaller ripple
+  rings. Napping in the shallows is allowed now — a capybara soaking in a
+  pond is the most capybara thing there is; swimming still wakes you. Splash
+  sound only on entering swim depth. Verified headless: big pond wades
+  (y = h = −0.18, legs on), NW pond deep + ocean float at −0.45 legs off,
+  nap holds while wading and breaks while swimming, zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

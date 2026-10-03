@@ -136,7 +136,7 @@ export function makeCapybara(T, scale = 1) {
   }
 
   g.scale.setScalar(scale);
-  return new Creature(g, { legs, bobPart: body, head, baseY: 0, shadowR: 1.0 });
+  return new Creature(g, { legs, bobPart: body, head, baseY: 0, shadowR: 1.0, swimSink: 0.45 });
 }
 
 // ---------- Tapir ----------
