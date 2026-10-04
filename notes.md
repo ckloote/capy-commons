@@ -202,6 +202,9 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    travel link for Phase 3's archipelago. Fallback if wanted sooner: a
    standalone rescue + thank-you scene could ship in Phase 2 with no
    ferry dependency.
+   ✅ Fallback shipped early in commit 13: the rescue, plus a dolphin that
+   swims beside you and tows you faster (a taste of the ferry). Still to do
+   in Phase 4: the ferry ride to the other islands once they exist.
 5. **Narrative framing.** Opening vignette of the Gathering legend, elder
    capybara NPC as tutorial, finale reworked so *every* creature settles in.
 6. **Persistence & polish.** localStorage save/continue, instancing perf
@@ -351,6 +354,41 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     necklaces run out, and regrowth. Zero JS errors.
   - Not yet: ducklings and the ocelot can't receive one (ideas: a tiny
     duckling lei; a necklaced ocelot that stays calm for a while).
+
+- **Commit 13: The stranded dolphin** (issue #3, from the user's nine-year-old;
+  the roadmap's early fallback — the island ferry waits for Phase 3).
+  - *Model:* `makeDolphin()` — capsule body with a pale belly, melon,
+    beak with a lighter "grin", flippers, swept dorsal, and flukes on a
+    pivot that beats up and down.
+  - *Where:* west beach (−53.4, 9.4), lying along the shoreline, ~1.5
+    units up from the waterline. Picked by scanning the SW–W shore for a
+    sandy spot with nothing solid within 7.6 units on the land side, so
+    the parade has room to gather (the first spot, on the SW, had a tree
+    right on its land side). Miko is ~20 away. 🌊 want-icon, dry 💦 puffs,
+    sad tail flops; one-time toast when you come within 12.
+  - *Push:* solid body (two circles in `separate()`). Pushing = moving, in
+    contact on the land side, facing seaward. It slides 0.45/s only with
+    ≥3 *friends* in the parade (ducklings don't count); otherwise it
+    wobbles and a throttled toast gives the count (0/3, 2/3). A prompt card
+    explains + counts. Full push ≈ 6s.
+  - *Freed* at depth 0.7: splash, a high join-chord, 💦💙 burst, +15 zen,
+    the parade hops, thank-you toast.
+  - *After:* circles + leaps for joy (1.2s arcs, nose up → nose down,
+    splash + ripple) in home water 5.5 units offshore. That was 9 at first,
+    which put its circle past the player's swim limit (ISLAND_R + 4 = 64),
+    so it was often unreachable — caught by a test. When you swim within
+    14 it comes alongside, keeping to whichever side has deep water (it
+    won't enter the shallows — another test catch: on the shore side it
+    stalled and fell behind), and within 3.2 it tows you: swim speed ×1.8.
+    The "zooming" toast waits 6s so it can't clobber the thank-you.
+  - Verified headless (900×600, 375×667): alone and with 2 friends it won't
+    budge (with the right counts), with 3 it slides and frees in ~6s,
+    thank-you + zen, tow engages, leaps, stays in deep water. Tow speed
+    measured with a fixed 1/60 s game clock (swiftshader frame rates make
+    wall-clock speeds meaningless): 7.56 vs 4.20 u/s = 1.80×. Necklace and
+    full-finale regressions green; zero JS errors.
+  - Found, not fixed: on phones the 💤 button overlaps the right edge of
+    the prompt card (any long card text; existed since the nap button).
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

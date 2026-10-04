@@ -516,6 +516,65 @@ export function makeMarmoset(T) {
     neck: { y: 0.44, z: 0.03, r: 0.1, tilt: 0.15 } });
 }
 
+// ---------- Dolphin (stranded on the beach; the parade pushes it home) ----------
+export function makeDolphin() {
+  const skin = solid(0x7d99ad), belly = solid(0xe4ecf0);
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.3, 8, 14), skin);
+  body.rotation.x = Math.PI / 2;     // capsule axis along z
+  body.scale.z = 0.85;               // a touch flatter top-to-bottom
+  body.position.y = 0.45;
+  g.add(body);
+  const under = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), belly);
+  under.scale.set(0.92, 0.55, 2.0);
+  under.position.set(0, 0.32, 0.05);
+  g.add(under);
+  const melon = new THREE.Mesh(new THREE.SphereGeometry(0.33, 12, 10), skin);
+  melon.scale.set(1, 0.9, 1.15);
+  melon.position.set(0, 0.5, 0.78);
+  g.add(melon);
+  const beak = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.42, 10), skin);
+  beak.rotation.x = Math.PI / 2;
+  beak.position.set(0, 0.38, 1.16);
+  g.add(beak);
+  const grin = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.165, 0.4, 10), belly);
+  grin.rotation.x = Math.PI / 2;
+  grin.scale.set(1, 1, 0.45);
+  grin.position.set(0, 0.33, 1.16);
+  g.add(grin);
+  for (const s of [-1, 1]) {
+    const e = eye(0.05); e.position.set(s * 0.27, 0.5, 0.86); g.add(e);
+    const flipper = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.5, 4), skin);
+    flipper.scale.set(1, 1, 0.3);
+    flipper.rotation.set(0.5, 0, s * -1.9);
+    flipper.position.set(s * 0.42, 0.24, 0.42);
+    g.add(flipper);
+  }
+  const dorsal = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.55, 4), skin);
+  dorsal.scale.set(0.28, 1, 1);
+  dorsal.rotation.x = -0.55;
+  dorsal.position.set(0, 0.98, -0.12);
+  g.add(dorsal);
+  // tail stock + flukes on a pivot so it can beat up and down
+  const fluke = new THREE.Group();
+  fluke.position.set(0, 0.45, -0.95);
+  const stock = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.65, 10), skin);
+  stock.rotation.x = -Math.PI / 2;
+  stock.scale.set(1, 1, 0.8);
+  stock.position.z = -0.28;
+  fluke.add(stock);
+  for (const s of [-1, 1]) {
+    const lobe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.26), skin);
+    lobe.rotation.y = s * 0.45;
+    lobe.position.set(s * 0.22, 0, -0.62);
+    fluke.add(lobe);
+  }
+  g.add(fluke);
+  const cr = new Creature(g, { shadowR: 1.3 });
+  cr.fluke = fluke;
+  return cr;
+}
+
 // ---------- Ocelot (the wetland's gentle menace — never catches anyone) ----------
 export function makeOcelot(T) {
   const fur = mat(T.fur_ocelot);

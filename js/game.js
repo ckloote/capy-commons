@@ -1,6 +1,6 @@
 // game.js — friends, items, conga line, grove delivery, finale, particles, UI
 import * as THREE from 'three';
-import { BUILDERS, makeDuckling, makeOcelot } from './creatures.js';
+import { BUILDERS, makeDuckling, makeOcelot, makeDolphin } from './creatures.js';
 import { heightAt, GROVE, SPRING, ISLAND_R } from './world.js';
 
 // ---------- emoji sprite helper ----------
@@ -98,6 +98,10 @@ const ITEMS = [
 ];
 
 const DUCKLING_SPOTS = [[33, 2], [12, 28], [30, 27]];
+
+// the stranded dolphin (issue #3): west beach, a few steps up from the
+// waterline; seaward = radial 170°. Clear sand behind it for the parade.
+const DOLPHIN = { x: -53.4, z: 9.4, seaX: -0.985, seaZ: 0.174, helpersNeeded: 3 };
 
 // ---------- UI helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -199,6 +203,26 @@ export class Game {
         landOnly: true,   // cats do not do water
       };
     }
+    // the stranded dolphin: too heavy for one capybara
+    {
+      const cr = makeDolphin();
+      const { x, z, seaX, seaZ } = DOLPHIN;
+      cr.group.position.set(x, heightAt(x, z), z);
+      cr.group.rotation.y = Math.atan2(seaZ, -seaX);   // lying along the shoreline
+      scene.add(cr.group);
+      const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTexture('🌊'), transparent: true, depthWrite: false }));
+      icon.scale.setScalar(0.8);
+      icon.position.set(0, 1.9, 0);
+      cr.group.add(icon);
+      this.dolphin = {
+        cr, icon, state: 'stranded',
+        sea: new THREE.Vector3(seaX, 0, seaZ),
+        noticed: false, nagAt: -99, heaveTold: false,
+        angle: 0, leapAt: 6, leapT: -1, rippleT: 0, towTold: false, side: 1,
+      };
+    }
+    this.dolphinTow = false;      // read by main: swimming beside the dolphin is faster
+    this.playerSwimming = false;  // set by main each frame
     this._updateHUD();
   }
 
@@ -524,6 +548,7 @@ export class Game {
 
     // ocelot + zen
     this._updateOcelot(dt, t, player);
+    this._updateDolphin(dt, t, player, playerMoving);
     this._updateZen(dt, t, player, playerMoving, springD);
 
     // finale progression
@@ -601,6 +626,147 @@ export class Game {
     }
   }
 
+  // ----- dolphin: stranded → pushed home by the parade → plays offshore -----
+  _friendsInParade(near, r) {
+    return this.followers.filter((f) => f.cfg && f.cr.group.position.distanceTo(near) < r).length;
+  }
+
+  _updateDolphin(dt, t, player, moving) {
+    const D = this.dolphin, g = D.cr.group, p = g.position;
+    const pd = Math.hypot(player.position.x - p.x, player.position.z - p.z);
+    this.dolphinTow = false;
+
+    if (D.state === 'stranded') {
+      // sad little flops and a dry puff from the blowhole
+      D.cr.fluke.rotation.x = Math.max(0, Math.sin(t * 1.4)) ** 6 * -0.5;
+      D.icon.position.y = 1.9 + Math.sin(t * 2) * 0.08;
+      if (Math.random() < dt * 0.4) {
+        this.particles.burst('💦', p.clone().add(new THREE.Vector3(0, 1.1, 0)), { count: 1, size: 0.3, up: 1.4, life: 0.8, spread: 0.1 });
+      }
+      if (!D.noticed && pd < 12) {
+        D.noticed = true;
+        toast('A dolphin is stranded on the sand! 🐬 It needs to get back to the sea…', 4500);
+      }
+      // pushing: in contact on the land side, walking toward the sea
+      const toD = new THREE.Vector3(p.x - player.position.x, 0, p.z - player.position.z);
+      const fwd = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y));
+      const along = Math.max(-0.8, Math.min(0.8, -toD.dot(fwd)));       // closest point on its axis
+      const gap = Math.hypot(p.x + fwd.x * along - player.position.x, p.z + fwd.z * along - player.position.z);
+      const face = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+      const pushing = moving && gap < 1.45 && toD.dot(D.sea) > 0.2 && face.dot(D.sea) > 0.5;
+      if (pushing) {
+        const helpers = this._friendsInParade(p, 15);
+        if (helpers >= DOLPHIN.helpersNeeded) {
+          const step = 0.45 * dt;
+          p.x += D.sea.x * step;
+          p.z += D.sea.z * step;
+          if (!D.heaveTold) {
+            D.heaveTold = true;
+            toast('Everybody PUSH! The whole parade leans in… 💪', 3000);
+          }
+          if (Math.random() < dt * 4) {
+            this.particles.burst('💨', p.clone().add(new THREE.Vector3(0, 0.2, 0)).addScaledVector(D.sea, -0.6),
+              { count: 1, size: 0.35, up: 0.6, life: 0.6 });
+          }
+        } else {
+          g.rotation.z = Math.sin(t * 22) * 0.04;   // budges, but no
+          if (t - D.nagAt > 5) {
+            D.nagAt = t;
+            this.sound.denied();
+            toast(helpers === 0
+              ? `Hnnngh! Too heavy for one capybara. Bring friends to help push! (0/${DOLPHIN.helpersNeeded})`
+              : `Heave! Not quite… you need more friends pushing with you. (${helpers}/${DOLPHIN.helpersNeeded})`, 3600);
+          }
+        }
+      } else {
+        g.rotation.z = 0;
+      }
+      const h = heightAt(p.x, p.z);
+      p.y = Math.max(h, -0.3);
+      D.cr.shadow.visible = h >= 0;
+      if (h < -0.7) this._freeDolphin(t);
+      return;
+    }
+
+    // ---- free: play offshore; swim beside the capybara when it's in the sea ----
+    // home water stays inside the swimmable ring (ISLAND_R + 4) so you can always reach it
+    const home = { x: DOLPHIN.x + D.sea.x * 5.5, z: DOLPHIN.z + D.sea.z * 5.5 };
+    let tx, tz, maxSp;
+    const companion = this.playerSwimming && pd < 14;
+    if (companion) {
+      // swim beside the capybara, aiming a little ahead so it stays alongside at speed;
+      // keep to whichever side has deep water (it won't follow into the shallows)
+      const fx = Math.sin(player.rotation.y), fz = Math.cos(player.rotation.y);
+      const beside = (s) => [player.position.x - fz * 1.7 * s + fx, player.position.z + fx * 1.7 * s + fz];
+      [tx, tz] = beside(D.side);
+      if (heightAt(tx, tz) >= -0.7) { D.side = -D.side; [tx, tz] = beside(D.side); }
+      maxSp = 10;
+    } else {
+      D.angle += dt * 0.35;
+      tx = home.x + Math.cos(D.angle) * 3; tz = home.z + Math.sin(D.angle) * 3;
+      maxSp = 3.5;
+    }
+    const dx = tx - p.x, dz = tz - p.z, dist = Math.hypot(dx, dz);
+    if (dist > 0.2 && heightAt(tx, tz) < -0.7) {
+      const sp = Math.min(maxSp, dist * 4);
+      const nx = p.x + (dx / dist) * sp * dt, nz = p.z + (dz / dist) * sp * dt;
+      if (heightAt(nx, nz) < -0.7) { p.x = nx; p.z = nz; }
+      let diff = Math.atan2(dx, dz) - g.rotation.y;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      g.rotation.y += diff * Math.min(1, dt * 5);
+    }
+    if (companion && pd < 3.2) {
+      this.dolphinTow = true;
+      if (!D.towTold && t - D.freedAt > 6) {   // let the thank-you toast finish first
+        D.towTold = true;
+        toast('The dolphin swims right beside you — whoosh, you’re zooming! 🐬💨', 4000);
+      }
+    }
+    // leaps for joy when it's on its own
+    if (D.leapT < 0 && !companion && t > D.leapAt) {
+      D.leapT = 0;
+      this.particles.burst('💦', p.clone().setY(0.2), { count: 4, size: 0.3, up: 2.2 });
+    }
+    let y = -0.3 + Math.sin(t * 2.2) * 0.05;
+    g.rotation.x = 0;
+    if (D.leapT >= 0) {
+      D.leapT += dt / 1.2;
+      const k = Math.min(1, D.leapT);
+      y = -0.3 + 4 * 1.7 * k * (1 - k);
+      g.rotation.x = (k - 0.5) * 1.6;   // nose up, then nose down
+      if (k >= 1) {
+        D.leapT = -1;
+        D.leapAt = t + 4 + Math.random() * 4;
+        this.particles.burst('💦', p.clone().setY(0.2), { count: 5, size: 0.3, up: 2 });
+        this.spawnRipple(p.x, p.z, 1.3);
+      }
+    }
+    p.y = y;
+    D.cr.fluke.rotation.x = Math.sin(t * (companion ? 9 : 5)) * 0.35;
+    D.rippleT -= dt;
+    if (D.rippleT <= 0 && D.leapT < 0) { this.spawnRipple(p.x, p.z, 1.1); D.rippleT = companion ? 0.4 : 0.9; }
+  }
+
+  _freeDolphin(t) {
+    const D = this.dolphin;
+    D.state = 'free';
+    D.freedAt = t;
+    D.icon.visible = false;
+    D.cr.shadow.visible = false;
+    D.cr.group.rotation.z = 0;
+    D.angle = Math.atan2(D.cr.group.position.z - (DOLPHIN.z + D.sea.z * 5.5), D.cr.group.position.x - (DOLPHIN.x + D.sea.x * 5.5));
+    D.leapAt = t + 1.2;
+    this.sound.splash();
+    this.sound.friendJoin(7);
+    const pos = D.cr.group.position.clone().setY(0.8);
+    this.particles.burst('💦', pos, { count: 10, size: 0.4, up: 3 });
+    this.particles.burst('💙', pos, { count: 6, size: 0.45 });
+    this.zen = Math.min(100, this.zen + 15);
+    for (const fw of this.followers) fw.hopAt = t + 0.1 + Math.random() * 0.4;   // the parade cheers
+    toast('SPLASH! The dolphin is free! It clicks a happy thank-you and leaps for joy. 🐬💙  (Swim out to say hi!)', 5500);
+  }
+
   // ----- zen -----
   _updateZen(dt, t, player, moving, springD) {
     // ambient regen is generous below the set point, a trickle above it
@@ -671,6 +837,13 @@ export class Game {
       z += dz * ((min - d) / d);
     };
     if (this.ocelot && this.ocelot.cr !== skip) bump(this.ocelot.cr.group, 0.55);
+    if (this.dolphin && this.dolphin.state === 'stranded') {
+      // long body: two circles along its axis
+      const dg = this.dolphin.cr.group, fx = Math.sin(dg.rotation.y), fz = Math.cos(dg.rotation.y);
+      for (const s of [-0.6, 0.6]) {
+        bump({ position: { x: dg.position.x + fx * s, z: dg.position.z + fz * s } }, 0.7);
+      }
+    }
     for (const f of this.friends) {
       if (f.cr !== skip) bump(f.cr.group, Math.min(f.cr.shadowR, 1.1) * 0.7);
     }
@@ -759,7 +932,19 @@ export class Game {
     const card = $('prompt-card');
     const f = this.nearestActionable(playerPos);
     const giveTo = f && this._canSatisfy(f) ? null : this._necklaceTarget(playerPos, f);
-    if (!f && !giveTo) { card.classList.remove('show'); return; }
+    if (!f && !giveTo) {
+      const D = this.dolphin;
+      if (D.state === 'stranded' && D.cr.group.position.distanceTo(playerPos) < 6) {
+        card.classList.add('show');
+        $('prompt-name').textContent = 'Stranded Dolphin 🐬';
+        $('prompt-line').textContent = `Too heavy alone! Bring ${DOLPHIN.helpersNeeded} friends and push it into the sea. ` +
+          `(${Math.min(this._friendsInParade(D.cr.group.position, 15), DOLPHIN.helpersNeeded)}/${DOLPHIN.helpersNeeded} friends)`;
+        $('prompt-progress').style.display = 'none';
+        return;
+      }
+      card.classList.remove('show');
+      return;
+    }
     card.classList.add('show');
     const giveLine = `📿 Press ${actKey()} to give a flower necklace.`;
     const bar = $('prompt-progress');

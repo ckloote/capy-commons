@@ -33,6 +33,10 @@ parade makes the ocelot think better of it entirely.
 make a necklace 📿. Walk up to any friend and press E / 🐾 to give it; they
 wear it for the rest of the game. Picked flowers grow back.
 
+**A dolphin is stranded on the west beach.** It's far too heavy for one
+capybara — come back with friends in your parade and push it into the sea
+together. It doesn't forget a favour.
+
 Capybaras can swim. The hot spring in the west does something nice.
 Squeak near your parade and see what happens.
 

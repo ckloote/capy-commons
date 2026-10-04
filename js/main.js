@@ -126,7 +126,8 @@ function step(dt, t) {
   const h = heightAt(g.position.x, g.position.z);
   const swimming = -h >= player.swimSink;
   const wading = !swimming && h < -0.02;
-  let speed = (swimming ? 4.2 : wading ? 5 : 6) * (boost ? 1.55 : 1);
+  // swimming beside the freed dolphin is much faster
+  let speed = (swimming ? 4.2 * (game.dolphinTow ? 1.8 : 1) : wading ? 5 : 6) * (boost ? 1.55 : 1);
 
   let moving = false;
   if (mv.len > 0.05) {
@@ -235,6 +236,7 @@ function step(dt, t) {
   camera.lookAt(camTarget);
 
   game.napping = napping;
+  game.playerSwimming = nowSwimming;
   game.update(dt, t, g, moving, camera);
   world.update(dt, t);
 }
