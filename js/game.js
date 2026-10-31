@@ -54,37 +54,45 @@ const rippleGeo = new THREE.RingGeometry(0.42, 0.56, 24);
 
 // ---------- config ----------
 const FRIENDS = [
-  { id: 'tapir', name: 'Tobi the Tapir', emoji: '🌺', want: 'flower', space: 2.7,
+  { id: 'tapir', tier: 'mellow', name: 'Tobi the Tapir', emoji: '🌺', want: 'flower', space: 2.7,
     pos: [18, -28], ask: 'Tobi sniffs the air dreamily. He has smelled a sweet flower somewhere in the meadows…',
     thanks: 'Tobi tucks the flower behind his ear. He lumbers happily into line!',
+    calmed: 'Tobi lets out a long, contented sigh and lumbers into line beside you.',
     necklace: 'Tobi lowers his big head so you can reach. He wears the necklace with enormous dignity.' },
-  { id: 'heron', name: 'Hana the Heron', emoji: '🐟', want: 'fish', space: 2.1,
+  { id: 'heron', tier: 'skittish', name: 'Hana the Heron', emoji: '🐟', want: 'fish', space: 2.1,
     pos: [31, 6], ask: 'Hana stands perfectly still. "A silver fish glints in the pond shallows. My old wings miss the dive…"',
     thanks: 'Hana swallows the fish in one elegant gulp. She strides after you on stilt legs!',
+    calmed: 'Hana\'s feathers settle. She lowers her head, just once — and steps after you on stilt legs.',
     necklace: 'Hana arches her long neck. "Oh, it suits me," she says — and it really does.' },
-  { id: 'otter', name: 'Rio the Otter', emoji: '🪨', want: 'skipstone', space: 1.8,
+  { id: 'otter', tier: 'shy', name: 'Rio the Otter', emoji: '🪨', want: 'skipstone', space: 1.8,
     pos: [-14, 30], ask: 'Rio juggles nothing. "Lost my lucky skipping stone! Flat, smooth, somewhere up the stone trail north of the meadow."',
     thanks: 'Rio skips the stone across the water — four bounces! He tumbles into line, chittering.',
+    calmed: 'Rio stops juggling nothing, flops over, then bounces up and tumbles into line. Who needs a stone?',
     necklace: 'Rio spins in a circle to show the necklace to absolutely everyone.' },
-  { id: 'duck', name: 'Mabel the Mallard', emoji: '🐥', want: 'ducklings', space: 1.6,
+  { id: 'duck', tier: 'shy', name: 'Mabel the Mallard', emoji: '🐥', want: 'ducklings', space: 1.6,
     pos: [21, 22], ask: 'Mabel is beside herself. "My three ducklings wandered off! Please, bring them waddling back."',
     thanks: 'Mabel counts her ducklings twice, then quacks the happiest quack you have ever heard.',
+    calmed: 'Mabel tucks her bill under a wing for a moment, then rises with a soft quack. She\'ll come — the ducklings can catch up.',
     necklace: 'Mabel quacks with delight. The ducklings are extremely jealous.' },
-  { id: 'monkey', name: 'Miko the Monkey', emoji: '🥭', want: 'mango', space: 1.8,
+  { id: 'monkey', tier: 'shy', name: 'Miko the Monkey', emoji: '🥭', want: 'mango', space: 1.8,
     pos: [-34, 16], ask: 'Miko swings down. "Mango. MANGO. There is one under a tree to the northwest and it is calling to me."',
     thanks: 'Miko cradles the mango like treasure and scampers into line behind you!',
+    calmed: 'Miko yawns hugely, forgets about mango entirely, and scampers into line behind you.',
     necklace: 'Miko tries to eat one petal, then decides the necklace is better for wearing.' },
-  { id: 'agouti', name: 'Pip the Agouti', emoji: '🌰', want: 'nut', space: 1.5,
+  { id: 'agouti', tier: 'mellow', name: 'Pip the Agouti', emoji: '🌰', want: 'nut', space: 1.5,
     pos: [8, 38], ask: 'Pip twitches. "I buried a marvelous nut. Somewhere. North-ish? It is gone. This is a catastrophe."',
     thanks: 'Pip stuffs the nut in one cheek. It is enormous. Pip is thrilled.',
+    calmed: 'Pip stops twitching. Pip is… calm? Pip is calm. Pip follows you.',
     necklace: 'Pip pats the necklace over and over. "Mine? Truly? MINE?"' },
-  { id: 'caiman', name: 'Old Grim the Caiman', emoji: '🧘', want: 'company', space: 2.7,
+  { id: 'caiman', tier: 'mellow', name: 'Old Grim the Caiman', emoji: '🧘', want: 'company', space: 2.7,
     pos: [38, -10], ask: 'Old Grim says nothing. He simply floats. Perhaps he just wants… quiet company. (Stay close a while.)',
     thanks: 'Old Grim opens one golden eye. "…fine," he rumbles, and drifts after you like a very slow torpedo.',
+    calmed: 'Old Grim opens one golden eye. "…fine," he rumbles, and drifts after you like a very slow torpedo.',
     necklace: 'Old Grim says nothing. But he does not take it off, and his golden eye looks a little softer.' },
-  { id: 'marmoset', name: 'Luna the Marmoset', emoji: '🫐', want: 'berry', space: 1.4,
+  { id: 'marmoset', tier: 'shy', name: 'Luna the Marmoset', emoji: '🫐', want: 'berry', space: 1.4,
     pos: [-38, -20], ask: 'Luna, tiny and serious: "One berry. The plump kind that grows in the northwest woods. Then I am yours."',
     thanks: 'Luna eats the berry in seventeen rapid bites and climbs onto the parade!',
+    calmed: 'Luna studies you very seriously, decides you will do, and climbs onto the parade.',
     necklace: 'Luna, tiny and serious, adjusts her necklace until it is exactly right.' },
 ];
 
@@ -102,6 +110,20 @@ const DUCKLING_SPOTS = [[33, 2], [12, 28], [30, 27]];
 // the stranded dolphin (issue #3): west beach, a few steps up from the
 // waterline; seaward = radial 170°. Clear sand behind it for the parade.
 const DOLPHIN = { x: -53.4, z: 9.4, seaX: -0.985, seaZ: 0.174, helpersNeeded: 3 };
+
+// phase 2 trust: calm is transferred, not radiated. Sitting still near a
+// friend fills their trust over ~8s and spends your zen by how skittish
+// they are; shy species won't *start* settling unless you're calm enough.
+const TIERS = {
+  mellow: { drain: 3, floor: 0 },      // ≈25 zen
+  shy: { drain: 4.5, floor: 50 },      // ≈35 zen
+  skittish: { drain: 6, floor: 65 },   // ≈50 zen
+};
+const FILL_TIME = 8;        // seconds of shared calm to full trust
+const CALM_R = 4.5;         // how close you sit (the friendship aura grows this in 2b)
+const SPEND_FLOOR = 15;     // recruitment never spends zen below this
+const NECKLACE_TRUST = 0.35;
+const shortName = (cfg) => cfg.name.split(' the ')[0];
 
 // ---------- UI helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -143,6 +165,9 @@ export class Game {
     this.zenFaceState = '';
     this.stressed = false;       // ocelot aura active this frame
     this.wanderingOff = false;   // set by main during the stress-out stroll
+    this.calming = null;         // the friend you're sharing calm with
+    this.calmState = null;       // 'calming' | 'wary' | 'low' | 'idle' for the prompt card
+    this.calmDrain = 0;          // zen/s being given away this frame
     this.trail = [];          // {x,z,d}
     this.trailD = 0;
     this.T = T;
@@ -161,7 +186,7 @@ export class Game {
       cr.group.add(icon);
       this.friends.push({
         cfg, cr, icon, state: 'waiting', space: cfg.space,
-        companyTime: 0, runeIndex: -1, homeSpot: null, wanderT: Math.random() * 5,
+        trust: 0, runeIndex: -1, homeSpot: null, wanderT: Math.random() * 5,
       });
     }
 
@@ -284,7 +309,7 @@ export class Game {
 
   // ----- interaction -----
   nearestActionable(playerPos) {
-    let best = null, bestD = 4.2;
+    let best = null, bestD = CALM_R;
     for (const f of this.friends) {
       if (f.state !== 'waiting') continue;
       const d = f.cr.group.position.distanceTo(playerPos);
@@ -295,7 +320,7 @@ export class Game {
 
   _canSatisfy(f) {
     const want = f.cfg.want;
-    if (want === 'company') return false;   // handled passively
+    if (want === 'company') return false;   // no gift for Old Grim: only calm
     if (want === 'ducklings') return this.countDucklingsFollowing() >= 3;
     return !!this.inventory[want];
   }
@@ -304,7 +329,7 @@ export class Game {
   _necklaceTarget(playerPos, talking) {
     if (this.necklaces <= 0) return null;
     if (talking && !talking.cr.necklace) return talking;
-    let best = null, bestD = 4.2;
+    let best = null, bestD = CALM_R;
     for (const f of this.friends) {
       if (f.cr.necklace) continue;
       const d = f.cr.group.position.distanceTo(playerPos);
@@ -328,9 +353,12 @@ export class Game {
     const giveTo = this._necklaceTarget(playerPos, f);
     if (giveTo) { this._giveNecklace(giveTo, t); return true; }
     if (!f) return false;
-    if (f.cfg.want === 'company') return true;
+    if (f.cfg.want === 'company') {
+      toast('🧘  Old Grim wants nothing but quiet company. Stay close and keep still.');
+      return true;
+    }
     this.sound.denied();
-    toast(f.cfg.emoji + '  ' + hintFor(f.cfg));
+    toast(f.cfg.emoji + '  ' + hintFor(f.cfg) + '  (Or just sit with them a while.)', 4200);
     return true;
   }
 
@@ -370,15 +398,24 @@ export class Game {
     this.particles.burst('🌸', above, { count: 8, size: 0.4 });
     this.particles.burst('💛', above, { count: 3, size: 0.4 });
     this.zen = Math.min(100, this.zen + 10);   // giving feels good
-    // the one trust meter that exists today: a necklace is good company
-    if (f.state === 'waiting' && f.cfg.want === 'company') f.companyTime += 2;
     if (f.state === 'following') f.hopAt = t + 0.1;
     toast(f.cfg.necklace, 4500);
+    // the universal gift: a big, free trust boost — but not an instant join
+    if (f.state === 'waiting') {
+      f.trust = Math.min(1, f.trust + NECKLACE_TRUST);
+      if (f.trust >= 1) {
+        // let the necklace line land before the join line
+        this._befriend(f, { quiet: true });
+        setTimeout(() => toast(f.cfg.calmed, 4200), 3600);
+      }
+    }
     this._updateHUD();
   }
 
-  _befriend(f) {
+  _befriend(f, { line, quiet = false } = {}) {
     f.state = 'following';
+    f.trust = 1;
+    if (this.calming === f) this.calming = null;
     f.icon.material.map = emojiTexture('💛');
     f.icon.material.needsUpdate = true;
     this.followers.push(f);
@@ -388,7 +425,8 @@ export class Game {
     }
     this.sound.friendJoin(this.followers.filter((x) => x.cfg).length - 1);
     this.particles.burst('💛', f.cr.group.position.clone().add(new THREE.Vector3(0, 1.2, 0)), { count: 10 });
-    toast(f.cfg.thanks, 4200);
+    if (!quiet) toast(line || f.cfg.thanks, 4200);
+    this._updateHUD();
     setTimeout(() => { f.icon.visible = false; }, 2500);
   }
 
@@ -465,16 +503,6 @@ export class Game {
           f.targetRot = Math.atan2(dx, dz);
         }
         f.icon.position.y = this._iconH(f.cfg.id) + Math.sin(t * 2 + f.cr.phase) * 0.08;
-        // caiman quiet company
-        if (f.cfg.want === 'company') {
-          if (d < 4.5) {
-            // napping beside Old Grim is the fastest way to his heart
-            f.companyTime += dt * (this.napping ? 2.5 : 1);
-            if (f.companyTime > 4) this._befriend(f);
-          } else {
-            f.companyTime = Math.max(0, f.companyTime - dt * 2);
-          }
-        }
       } else if (f.state === 'homing') {
         this._moveToward(f, f.homeSpot, dt, t, 1.6, 5);
         if (Math.hypot(f.cr.group.position.x - f.homeSpot.x, f.cr.group.position.z - f.homeSpot.z) < 1.2) {
@@ -502,6 +530,8 @@ export class Game {
         }
       }
     }
+
+    this._updateCalm(dt, t, player, playerMoving);
 
     // grove delivery
     const groveD = Math.hypot(player.position.x - GROVE.x, player.position.z - GROVE.z);
@@ -556,6 +586,59 @@ export class Game {
 
     // prompt card
     this._updatePrompt(player.position);
+  }
+
+  // ----- trust: sit still near a waiting friend and share your calm -----
+  _updateCalm(dt, t, player, moving) {
+    this.calmDrain = 0;
+    this.calmState = null;
+    const f = this.wanderingOff || this.finaleStarted ? null : this.nearestActionable(player.position);
+    if (!f) { this.calming = null; return; }
+    const tier = TIERS[f.cfg.tier];
+    const who = shortName(f.cfg);
+    if (moving) {
+      // walking away (or fidgeting) pauses a session; trust is never lost
+      this.calming = null;
+      this.calmState = 'idle';
+      return;
+    }
+    // the zen floor gates *starting* to settle; a friend who has already
+    // begun to trust you picks up where you left off
+    if (this.calming !== f && f.trust === 0 && this.zen < tier.floor) {
+      this.calmState = 'wary';
+      if (!this.waryTold) {
+        this.waryTold = true;
+        this.sound.denied();
+        toast(`${who} is too skittish to settle near someone so frazzled. Nap or soak first, then come back calmer (zen ${tier.floor}+). 🌿`, 5200);
+      }
+      return;
+    }
+    this.calming = f;
+    // out of calm to share: the session waits for you, nothing is lost.
+    // Resume only once you've recovered a little, so it doesn't flicker.
+    if (this.zen <= SPEND_FLOOR + 0.01) this.calmLow = true;
+    else if (this.zen >= SPEND_FLOOR + 5) this.calmLow = false;
+    if (this.calmLow) {
+      this.calmState = 'low';
+      if (!this.lowTold) {
+        this.lowTold = true;
+        toast(`You've shared all the calm you can spare. Rest a moment — ${who} will wait. 💤`, 4800);
+      }
+      return;
+    }
+    this.calmState = 'calming';
+    if (!this.calmTold) {
+      this.calmTold = true;
+      toast(`${who} begins to relax around you 💗  Sharing calm costs a little zen.`, 4600);
+    }
+    // napping beside a friend is the fastest way to their heart
+    f.trust = Math.min(1, f.trust + dt / FILL_TIME * (this.napping ? 2 : 1));
+    this.calmDrain = tier.drain;
+    if (Math.random() < dt * 1.6) {
+      this.particles.burst('💗', f.cr.group.position.clone().add(new THREE.Vector3(0, this._iconH(f.cfg.id) - 0.3, 0)),
+        { count: 1, size: 0.3, up: 1, speed: 0.3, life: 1.1, gravity: 0.2, spread: 0.3 });
+    }
+    if (f.trust >= 1) this._befriend(f, { line: f.cfg.calmed });
   }
 
   // ----- ocelot: prowls, stalks, and is politely outnumbered -----
@@ -771,7 +854,10 @@ export class Game {
   _updateZen(dt, t, player, moving, springD) {
     // ambient regen is generous below the set point, a trickle above it
     const belowSet = this.zen < 60;
-    let delta = this.napping ? 8 : (moving ? (belowSet ? 0.3 : 0) : (belowSet ? 1.2 : 0.15));
+    // while you're sharing calm, your own resting regen (ambient + nap) goes
+    // to the friend instead — the spring and friend piles still top you up
+    let delta = this.calmDrain ? 0
+      : this.napping ? 8 : (moving ? (belowSet ? 0.3 : 0) : (belowSet ? 1.2 : 0.15));
     if (springD < 3.4) delta += 6;
     // chaos zones: gentle, legible, and always parked next to something you want
     for (const zone of this.world.chaosZones) {
@@ -802,6 +888,9 @@ export class Game {
     }
     if (this.finaleStarted) delta = Math.max(delta, 10); // perfect calm settles
     this.zen = Math.max(0, Math.min(100, this.zen + delta * dt));
+    // calm given away never pushes you below the spending floor
+    if (this.calmDrain) this.zen = Math.max(Math.min(this.zen, SPEND_FLOOR), this.zen - this.calmDrain * dt);
+    $('zen-wrap').classList.toggle('giving', this.calmDrain > 0);
 
     // HUD ring
     const arc = $('zen-arc');
@@ -955,13 +1044,21 @@ export class Game {
       return;
     }
     $('prompt-name').textContent = f.cfg.name;
-    $('prompt-line').textContent = giveTo === f ? `${f.cfg.ask}  ${giveLine}` : f.cfg.ask;
-    if (f.cfg.want === 'company') {
-      bar.style.display = 'block';
-      bar.firstElementChild.style.width = Math.min(100, (f.companyTime / 4) * 100) + '%';
-    } else {
-      bar.style.display = 'none';
+    const who = shortName(f.cfg);
+    let line = f.cfg.ask;
+    if (this.calmState === 'wary') {
+      line = `${who} is too wary to settle — come back calmer (zen ${TIERS[f.cfg.tier].floor}+). 🌿`;
+    } else if (this.calmState === 'low') {
+      line = `You're running low on calm… rest a moment. ${who} will wait.`;
+    } else if (this.calmState === 'idle' && f.trust > 0) {
+      line = `${who} is starting to trust you. Keep still nearby. 💗`;
+    } else if (this.calmState === 'calming' && f.trust > 0.15) {
+      line = `${who} is relaxing… 💗`;
     }
+    $('prompt-line').textContent = giveTo === f ? `${line}  ${giveLine}` : line;
+    bar.style.display = 'block';
+    bar.classList.toggle('paused', this.calmState !== 'calming');
+    bar.firstElementChild.style.width = Math.min(100, f.trust * 100).toFixed(1) + '%';
   }
 
   _updateHUD() {

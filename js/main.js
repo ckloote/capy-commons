@@ -46,6 +46,7 @@ let rippleTimer = 0;
 let napping = false;
 let napZZZTimer = 0, snoreTimer = 0, napZoom = 0;
 let wander = null;   // { target, t } during the zen-zero stroll
+let frozen = false;  // test hook: stop the rAF game step so a script can drive a fixed clock
 const clock = new THREE.Clock();
 
 function buildGame() {
@@ -65,6 +66,10 @@ function buildGame() {
     teleport(x, z) { player.group.position.set(x, Math.max(heightAt(x, z), 0), z); },
     heightAt,
     setCam(yaw, pitch, dist) { camYaw = yaw; if (pitch !== undefined) camPitch = pitch; if (dist !== undefined) camDist = dist; },
+    freeze(on = true) { frozen = on; },
+    tick: (dt, t) => step(dt, t),
+    get napping() { return napping; },
+    set napping(v) { napping = v; },
   };
   animate();
 }
@@ -250,7 +255,7 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
-  if (started) step(dt, t);
+  if (started && !frozen) step(dt, t);
   renderer.render(scene, camera);
 }
 

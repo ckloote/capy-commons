@@ -146,7 +146,15 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    proximity × zen; gifts become optional accelerators, ducklings quest
    stays). Growing calm aura gates skittish species/areas. Attachment
    slots on capy (head/back/rump) for small critters with spring-sway;
-   new stackables: turtle, frog, songbird, wild capy cousins. ← next phase.
+   new stackables: turtle, frog, songbird, wild capy cousins. ← in progress.
+   Split into three commits: **2a** trust meters + calming costs zen ✅
+   (commit 14); **2b** friendship aura — radius grows with the parade,
+   skittish species flee a small one (species gating only; map gates stay
+   Phase 4); **2c** attachment slots + stacking riders (turtle, frog,
+   songbird) and wild capy cousins as ground followers. Stackables and
+   cousins are bonus: the 8 named friends still complete the Gathering;
+   they count for the pile bonus and the ocelot, cousins also push the
+   dolphin.
 
    **Flower necklaces (issue #4).** The capy picks the flowers already
    scattered around the island (`world.flowers`: stem + petal head, placed
@@ -158,8 +166,8 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    through the parade and finale. Needs the inventory to count items
    (currently one yes/no flag per item). The pick → craft → give → wear
    part doesn't depend on trust and can ship early as a small win.
-   ✅ Early part shipped in commit 12; still to do with Phase 2: the
-   necklace's real trust boost once every animal has a trust meter.
+   ✅ Early part shipped in commit 12; the trust boost (+0.35, zero zen)
+   shipped with Phase 2a in commit 14.
 
    **Zen economy decisions (agreed with user, to be built into this phase):**
    - *Calming costs zen — calm is transferred, not radiated.* While an
@@ -389,6 +397,51 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     full-finale regressions green; zero JS errors.
   - Found, not fixed: on phones the 💤 button overlaps the right edge of
     the prompt card (any long card text; existed since the nap button).
+
+- **Commit 14 (Phase 2a): Trust meters — calm is transferred.**
+  - Old Grim's `companyTime` became `f.trust` (0→1) on every friend. Stand
+    still within `CALM_R` (4.5) of the nearest waiting friend → a calming
+    session: trust fills over `FILL_TIME` 8s (×2 while napping — the
+    generalized Grim nap bonus), with a 💗 trickle and the zen ring
+    breathing pink (`#zen-wrap.giving`).
+  - Each friend has a `tier` → `TIERS` table: mellow (tapir, agouti,
+    caiman) 3 zen/s, no floor; shy (otter, duck, monkey, marmoset) 4.5/s,
+    floor 50; skittish (heron) 6/s, floor 65. The floor gates only
+    *starting* (trust 0) — a friend who has begun to trust you resumes at
+    any zen. The shy floor of 50 is my pick; the roadmap only fixed the
+    heron's 65.
+  - Calm is given, not radiated: during a session your own resting regen
+    (ambient + the nap's +8) is suspended; the spring and friend piles still
+    apply. Otherwise napping beside a mellow friend would net +5/s and make
+    calming free.
+  - Casual rails: moving pauses (never decays — Grim's old 2/s decay is
+    gone); spending never takes zen below `SPEND_FLOOR` 15, with hysteresis
+    (pause at 15, resume at 20) because the pile bonus nudged zen over 15
+    every frame and the session flickered — caught by a test. Only real
+    stressors can reach 0.
+  - Gifts unchanged: species items and the ducklings quest still befriend
+    instantly. Necklace: +0.35 trust, zero zen (plus its +10 zen); if that
+    completes trust they join, with their necklace line first and the join
+    line 3.6s later. New per-friend `calmed` join lines for the trust route.
+  - Prompt card: trust bar for every waiting friend (dimmed while paused);
+    status lines for wary / low / paused / relaxing; one-time toasts for
+    the first session, the first floor refusal and the first 15-zen pause.
+    The E-hint for a gift now adds "(Or just sit with them a while.)"
+  - Fixed the commit-13 phone overlap: under 640px wide the prompt card
+    sits at bottom 186px, above the 💤 button.
+  - Test hooks: `CAPY.freeze()` stops the rAF step, `CAPY.tick(dt, t)`
+    drives a fixed clock, `CAPY.napping` get/set.
+  - Verified headless (900×600, 375×667 touch), 20 checks: tapir joins in
+    8.02s for 24 zen; heron refused at 60 (trust stays 0, card says
+    "zen 65+") and calmed at 70 for ≈44 (the tapir's pile bonus offsets a
+    little); walking away holds trust exactly, resuming below the floor
+    works; zen 20 → bottoms at 15.00, no stress-out, no flicker; necklace
+    completes 0.7 → join, and gives a fresh friend exactly 0.35; mango gift
+    instant; napping Grim joins in 4.02s; phone card clear of 💤; ducklings
+    quest → Mabel; full run 8/8 homed, 8 runes, finale. Zero JS errors.
+  - Not changed: the heron sits ~11 from the ocelot's patrol, so its
+    stalking can drain you mid-calm; the 15 floor doesn't block real
+    stressors. Worth watching in 2b playtests.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

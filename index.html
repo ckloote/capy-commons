@@ -144,6 +144,9 @@
     stroke-dasharray: 150.8; stroke-dashoffset: 0;
     transition: stroke .5s ease;
   }
+  /* sharing calm with a friend: the ring breathes out */
+  #zen-wrap.giving #zen-arc { animation: zen-give 1.1s ease-in-out infinite; }
+  @keyframes zen-give { 50% { stroke-opacity: .45; stroke: #ffc2d4; } }
   #zen-face {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -192,7 +195,12 @@
   #prompt-progress > div {
     height: 100%; width: 0%;
     background: linear-gradient(90deg, #8ff7d8, #ffe9a8);
-    border-radius: 3px; transition: width .15s linear;
+    border-radius: 3px; transition: width .15s linear, opacity .3s ease;
+  }
+  #prompt-progress.paused > div { opacity: .55; }
+  /* narrow screens: lift the card clear of the 💤 button's column */
+  @media (max-width: 640px) {
+    #prompt-card { bottom: calc(env(safe-area-inset-bottom, 0px) + 186px); }
   }
 
   #toast {

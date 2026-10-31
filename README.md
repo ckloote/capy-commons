@@ -1,10 +1,11 @@
 # Capy Commons — The Gathering 🌿
 
 A cozy third-person 3D browser game. You are a capybara in a wetland commons
-at golden hour. Eight animal friends are scattered across the island — some
-want a small favor (a mango, a lost lucky stone, three runaway ducklings),
-and one just wants quiet company. Befriend them, lead your growing parade to
-the glowing grove in the north, and light the eight runes to complete the
+at golden hour. Eight animal friends are scattered across the island. Each
+will come to trust you if you sit quietly with them and share your calm —
+or you can win them over at once with the small favor they're hoping for (a
+mango, a lost lucky stone, three runaway ducklings). Lead your growing parade
+to the glowing grove in the north and light the eight runes to complete the
 Gathering.
 
 **Play it:** serve this repo as static files and open `index.html`.
@@ -29,9 +30,17 @@ to sit right next to things you want. Hit zero and nothing bad happens: you
 just wander off to somewhere calmer and collect yourself. A big enough
 parade makes the ocelot think better of it entirely.
 
+**Sharing calm:** stand still near a friend and their trust bar fills
+(about 8 seconds; napping beside them is twice as fast). Calm is *given*, so
+it costs zen while it fills — a little for easygoing friends, more for shy
+ones, and the skittish heron won't even start to settle unless you arrive
+properly calm. Walk away and their trust waits for you; it never resets.
+Sharing calm can't take you below a small reserve, so being friendly never
+makes you stress out.
+
 **Flower necklaces:** walk through the meadow flowers to pick them — three
 make a necklace 📿. Walk up to any friend and press E / 🐾 to give it; they
-wear it for the rest of the game. Picked flowers grow back.
+wear it for the rest of the game, and it earns a big chunk of trust for free. Picked flowers grow back.
 
 **A dolphin is stranded on the west beach.** It's far too heavy for one
 capybara — come back with friends in your parade and push it into the sea
