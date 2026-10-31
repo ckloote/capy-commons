@@ -730,6 +730,26 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     checking distances a few seconds later measures the parade's swim over,
     not the current; the test now puts the friends on the bank first.
 
+- **Commit 22: PR #6 review fix: the terrain mesh now matches `heightAt`.**
+  - Finding (P2): the paddies' mesh was ~1.28 units per cell while their
+    bund edges are 0.55 wide, so the rendered ground and `heightAt` (which
+    places characters, water and pads) disagreed. Reproduced first with a
+    downward raycast against `world.terrains`: at (24.682, 90.378) the
+    ground was 0.339 while `heightAt` gave −0.09; worst error 0.41 on the
+    paddies, with 4 lily-pad centres under the rendered ground and 15 pads
+    lapping onto a bund. The same sweep found 0.43 on the terraces and 0.54
+    on the riverbank's banks.
+  - Fix: mesh spacing per biome, terraces 0.6 → 0.45, paddies 1.3 → 0.35,
+    riverbank 1.3 → 0.8. A rotated grid can't line up with an axis-aligned
+    plane, so finer tessellation it is. Lily pads now need their whole disc
+    over water (6 rim samples), not just the centre.
+  - After: the probe point renders at −0.085; worst error is 0.17 on the
+    paddies (3 of 12k samples above 0.12, on bund crests), 0.23 on the
+    riverbank, 0.37 on terrace riser edges (was 0.43; resolving those fully
+    needs ~0.3 spacing). 0 pads under ground or over a bund (36 pads).
+    Terrain vertices 66k → 142k; headless boot 3.1 → 3.7 s. 3b/3c/3d
+    suites and the full regression all still pass.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

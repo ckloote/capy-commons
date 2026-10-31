@@ -421,8 +421,10 @@ export function createWorld(scene, T) {
   for (let i = 1; i < ISLANDS.length; i++) {
     const I = ISLANDS[i];
     const size = 2 * I.reach + 4;
-    // terrace risers are narrow, so that island gets a finer mesh
-    const cell = I.biome === 'terraces' ? 0.6 : 1.3;
+    // mesh spacing per biome: fine enough that the rendered ground matches
+    // heightAt (which places characters and water) across the narrow features —
+    // terrace risers, 0.55-wide bund edges, the river's banks
+    const cell = { terraces: 0.45, paddies: 0.35, riverbank: 0.8 }[I.biome] || 1.3;
     world.terrains.push(buildTerrain(i, I.x, I.z, size, Math.ceil(size / cell), 26 * size / 170));
   }
   const seaFloor = new THREE.Mesh(new THREE.PlaneGeometry(700, 700),
@@ -942,7 +944,9 @@ export function createWorld(scene, T) {
       for (let k = 0; k < 9; k++) {
         const p = PADDY.toWorld(f.lx + (R() - 0.5) * (CELL - 2.2), f.lz + (R() - 0.5) * (CELL - 2.2));
         const r = 0.45 + R() * 0.4;
-        if (heightAt(p.x, p.z) > -0.05 || pads.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < o.r + r)) continue;
+        // the whole pad has to float on water, not lap onto a bund
+        const wet = [0, 1, 2, 3, 4, 5].every((k) => heightAt(p.x + Math.cos(k * 1.05) * r, p.z + Math.sin(k * 1.05) * r) < -0.05);
+        if (!wet || heightAt(p.x, p.z) > -0.05 || pads.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < o.r + r)) continue;
         pads.push({ x: p.x, z: p.z, r, rot: R() * 6.3 });
       }
     }
