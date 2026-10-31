@@ -1,7 +1,7 @@
 // game.js — friends, items, conga line, grove delivery, finale, particles, UI
 import * as THREE from 'three';
 import { BUILDERS, makeDuckling, makeOcelot, makeDolphin, makeTurtle, makeFrog, makeSongbird, makeCousin } from './creatures.js';
-import { heightAt, GROVE, SPRING, ISLAND_R } from './world.js';
+import { heightAt, GROVE, ISLAND_R, ISLANDS, PADDY } from './world.js';
 
 // ---------- emoji sprite helper ----------
 const spriteCache = {};
@@ -171,8 +171,12 @@ const CRITTERS = [
   ['frog', -21.9, 33], ['frog', -20, 37.5],                 // NW pond edge
   ['songbird', -8, -14], ['songbird', 7, -11], ['songbird', -2, -20],   // meadow, north of spawn
   ['cousin', -21, 44], ['cousin', -18, 47], ['cousin', -24, 41],        // southwest marsh herd
+  // the Rice Paddies (phase 3c): frogs on lily pads, a turtle on a bund, a cousin herd on the rim
+  ...PADDY.perches.map((p) => ['frog', p.x, p.z]),
+  ['turtle', PADDY.turtle.x, PADDY.turtle.z],
+  ...PADDY.herd.map((p) => ['cousin', p.x, p.z]),
 ];
-const RIDE_CAP = 4;          // per stack (head, back)
+const RIDE_CAP = 5;          // per stack (head, back): 10 riders in all, so every one fits
 
 // ---------- UI helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -206,6 +210,7 @@ export class Game {
     this.ripples = [];
     this.boostUntil = -99;
     this.springToastAt = -99;
+    this.visited = new Set(['home']);   // islands you've set foot on (arrival toasts)
     // zen (phase 1): the only "health" this game has.
     // It settles near ZEN_SET (60) on its own; only naps, the spring, and
     // friend piles push it toward 100 — full calm is prepared, not default.
@@ -313,6 +318,7 @@ export class Game {
         home: { x, z }, fleeUntil: -99, returnAt: -99,
       });
     });
+    this._cur = { x: 0, z: 0 };   // scratch for currentAt
     this._lastP = null;
     this._vel = new THREE.Vector2();
     this._acc = new THREE.Vector2();
@@ -613,6 +619,13 @@ export class Game {
         target.y = 0;
         this._moveToward(fw, target, dt, t, 1.4, 8.2);
       }
+      // the river carries the parade too, so a drifting capybara doesn't leave it behind
+      const cur = this.world.currentAt(fw.cr.group.position.x, fw.cr.group.position.z, this._cur);
+      if (cur.x || cur.z) {
+        const solid = this.world.collide(fw.cr.group.position.x + cur.x * dt, fw.cr.group.position.z + cur.z * dt,
+          Math.min(fw.cr.shadowR, 0.8) * 0.7);
+        fw.cr.group.position.x = solid.x; fw.cr.group.position.z = solid.z;
+      }
     }
 
     for (const f of this.friends) {
@@ -697,14 +710,34 @@ export class Game {
       } else if (d.state === 'home') d.cr.update(dt, t, false);
     }
 
-    // hot spring boost
-    const springD = Math.hypot(player.position.x - SPRING.x, player.position.z - SPRING.z);
-    if (springD < 3.4) {
-      if (t - this.springToastAt > 16) {
-        this.springToastAt = t;
-        toast('Ahh… yuzu warmth soaks in. Zoomies unlocked! ⚡');
+    // first footfall on a neighbour island
+    {
+      const px = player.position.x, pz = player.position.z;
+      const isl = heightAt(px, pz) > -0.3 ? this.world.islandAt(px, pz) : null;
+      if (isl && isl.arrive && !this.visited.has(isl.id)) {
+        this.visited.add(isl.id);
+        toast(isl.arrive, 4800);
         this.sound.pickup();
       }
+    }
+
+    // the river: one toast the first time the current takes you
+    if (this.inCurrent > 1.2 && !this.currentTold) {
+      this.currentTold = true;
+      toast('Whee! The current has you. 🌊 Ride it out to sea, or paddle for the bank.', 5200);
+      this.sound.splash();
+    }
+
+    // hot spring boost
+    const springD = this.world.springDist(player.position.x, player.position.z);
+    if (springD < 3.4) {
+      const spr = this.world.springAt(player.position.x, player.position.z);
+      if (t - this.springToastAt > 16 || (spr && spr !== this.lastSpring && t - this.springToastAt > 4)) {
+        this.springToastAt = t;
+        toast((spr || this.world.springs[0]).line);
+        this.sound.pickup();
+      }
+      this.lastSpring = spr;
       this.boostUntil = t + 10;
       if (Math.random() < dt * 3) {
         this.particles.burst('✨', player.position.clone().add(new THREE.Vector3(0, 0.8, 0)), { count: 2, size: 0.3, up: 1.4, life: 0.9 });
@@ -1127,7 +1160,7 @@ export class Game {
     }
 
     // ---- free: play offshore; swim beside the capybara when it's in the sea ----
-    // home water stays inside the swimmable ring (ISLAND_R + 4) so you can always reach it
+    // home water stays close to the beach (it was sized for the old ISLAND_R + 4 swim limit)
     const home = { x: DOLPHIN.x + D.sea.x * 5.5, z: DOLPHIN.z + D.sea.z * 5.5 };
     let tx, tz, maxSp;
     const companion = this.playerSwimming && pd < 14;
@@ -1513,8 +1546,11 @@ export class Game {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({
         map: emojiTexture('✦'), color: 0xffe9a8, transparent: true, opacity: 0, depthWrite: false,
       }));
-      const a = Math.random() * Math.PI * 2, r = Math.random() * (ISLAND_R - 6);
-      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      // most over home; a few drift over each neighbour island too
+      const I = i < 52 ? null : ISLANDS[1 + (i % 3)];
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * (I ? I.rm * 0.75 : ISLAND_R - 6);
+      const x = (I ? I.x : 0) + Math.cos(a) * r, z = (I ? I.z : 0) + Math.sin(a) * r;
       s.scale.setScalar(0.28);
       s.position.set(x, Math.max(heightAt(x, z), 0) + 0.8 + Math.random() * 2.5, z);
       s.userData = { x0: s.position.x, y0: s.position.y, z0: s.position.z, ph: Math.random() * 6 };

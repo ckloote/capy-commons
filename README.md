@@ -60,6 +60,15 @@ wear it for the rest of the game, and it earns a big chunk of trust for free. Pi
 capybara — come back with friends in your parade and push it into the sea
 together. It doesn't forget a favour.
 
+**There's more out there.** Look out from the beaches: the Commons isn't
+alone. Steaming stone terraces lie to the northeast, rice paddies to the
+south, and a river island to the west, with a couple of palm islets in
+between. Your whole parade swims with you. Soak in the terraces' milky
+mineral pools, wade the paddies where frogs sit on lily pads, and let the
+river's current carry you down to the sea. Nothing out there is needed for
+the Gathering; they're places to explore, with a few more critters to
+befriend.
+
 Capybaras can swim. The hot spring in the west does something nice.
 Squeak near your parade and see what happens.
 
@@ -70,7 +79,9 @@ Squeak near your parade and see what happens.
   every animal is spheres, capsules and cones with a little leg-swing rig.
 - **Textures were generated with Gemini** (`gemini-3.1-flash-image`) as
   seamless painterly tiles — grass, bark, water, fur, feathers, scales — plus
-  the painted title screen. See `assets/textures/`.
+  the painted title screen. The neighbour islands' tiles (travertine, mud,
+  rice, river stones, lily pads) came later from `gemini-nano-banana-2.1`.
+  See `assets/textures/`.
 - **Audio** is synthesized in WebAudio at runtime: squeaks, pentatonic join
   chords (each friend adds a higher step — the island slowly builds a chord),
   rune bells, wind and random birdsong.

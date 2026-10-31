@@ -1,6 +1,6 @@
 // main.js — bootstrap, player controller, camera, render loop
 import * as THREE from 'three';
-import { createWorld, heightAt, ISLAND_R, GROVE, SPRING } from './world.js';
+import { createWorld, heightAt, SEA_R } from './world.js';
 import { makeCapybara } from './creatures.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
@@ -23,13 +23,15 @@ window.addEventListener('resize', () => {
 
 // ---------- texture loading ----------
 const NAMES = ['grass', 'path', 'water', 'bark', 'canopy', 'stone', 'petals',
-  'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales'];
+  'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales',
+  'travertine', 'mud', 'rice.png', 'lilypad.png', 'riverstones'];
 const loader = new THREE.TextureLoader();
 const T = {};
 const texturesReady = Promise.all(NAMES.map((n) => new Promise((res, rej) => {
-  loader.load(`assets/textures/${n}.jpg`, (tex) => {
+  const file = n.includes('.') ? n : `${n}.jpg`;   // cut-outs with alpha are .png
+  loader.load(`assets/textures/${file}`, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
-    T[n] = tex; res();
+    T[n.split('.')[0]] = tex; res();
   }, undefined, rej);
 })));
 
@@ -77,6 +79,7 @@ function buildGame() {
 
 // ---------- player + camera ----------
 const camTarget = new THREE.Vector3();
+const curTmp = { x: 0, z: 0 };
 const camPos = new THREE.Vector3();
 
 function step(dt, t) {
@@ -87,7 +90,7 @@ function step(dt, t) {
   if (!wander && game.zen <= 0) {
     napping = false;
     document.getElementById('btn-nap').classList.remove('napping');
-    const spots = [{ x: 0, z: 4 }, { x: SPRING.x, z: SPRING.z }];
+    const spots = world.calmSpots.slice();   // spawn, the spring, and one per neighbour island
     spots.sort((a, b) =>
       Math.hypot(g.position.x - a.x, g.position.z - a.z) -
       Math.hypot(g.position.x - b.x, g.position.z - b.z));
@@ -149,7 +152,7 @@ function step(dt, t) {
     let nz = g.position.z + dz * speed * mv.len * dt;
     const solid = world.collide(nx, nz, 0.55);
     nx = solid.x; nz = solid.z;
-    if (Math.hypot(nx, nz) < ISLAND_R + 4) {
+    if (Math.hypot(nx, nz) < SEA_R) {
       g.position.x = nx; g.position.z = nz;
     }
     const targetRot = Math.atan2(dx, dz);
@@ -158,6 +161,16 @@ function step(dt, t) {
     while (diff < -Math.PI) diff += Math.PI * 2;
     g.rotation.y += diff * Math.min(1, dt * 10);
     moving = true;
+  }
+
+  // the river current carries you downstream (swimming against it still wins)
+  {
+    const cur = world.currentAt(g.position.x, g.position.z, curTmp);
+    if (cur.x || cur.z) {
+      const nx = g.position.x + cur.x * dt, nz = g.position.z + cur.z * dt;
+      if (Math.hypot(nx, nz) < SEA_R) { g.position.x = nx; g.position.z = nz; }
+      game.inCurrent = Math.hypot(cur.x, cur.z);
+    } else game.inCurrent = 0;
   }
 
   // dynamic bodies are solid too: no phasing through the ocelot or friends
