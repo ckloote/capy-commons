@@ -71,6 +71,37 @@ for (const I of ISLANDS) {
   I.reach = Math.max(I.rx, I.rz) * (1 + (I.shore * 1.75) / I.rm) + 1;   // bbox for a cheap reject
 }
 
+// ---------- the Rice Paddies layout (pure geometry, shared with game.js) ----------
+// Fields are the 7.5-unit cells of the paddies' local grid that sit wholly in
+// the flooded middle. Most are planted with rice; the rest grow lily pads,
+// and a few pads near the north shore are perches for frogs.
+export const PADDY = (() => {
+  const I = ISLANDS.find((i) => i.biome === 'paddies');
+  const CELL = 7.5, R = mulberry(7707);
+  const toWorld = (lx, lz) => ({ x: I.x + lx * I.cos - lz * I.sin, z: I.z + lx * I.sin + lz * I.cos });
+  const fields = [];
+  for (let i = -5; i < 5; i++) {
+    for (let j = -5; j < 5; j++) {
+      const lx = (i + 0.5) * CELL, lz = (j + 0.5) * CELL;
+      // whole: every corner is in the flooded middle; edge fields are cut off by the rim
+      const whole = [[-1, -1], [1, -1], [-1, 1], [1, 1]].every(([a, b]) =>
+        Math.hypot((lx + a * (CELL / 2 - 0.5)) / I.rx, (lz + b * (CELL / 2 - 0.5)) / I.rz) < 0.64);
+      if (whole || Math.hypot(lx / I.rx, lz / I.rz) < 0.62) fields.push({ lx, lz, ...toWorld(lx, lz), whole, planted: R() < 0.62 });
+    }
+  }
+  // the lily-pad fields: always at least the three nearest the north shore (toward home)
+  const byNorth = fields.filter((f) => f.whole).sort((a, b) => a.z - b.z);
+  for (let k = 0; k < 3; k++) byNorth[k].planted = false;
+  const lily = byNorth.filter((f) => !f.planted);
+  const perches = [toWorld(lily[0].lx + 1.3, lily[0].lz - 0.9), toWorld(lily[1].lx - 1.1, lily[1].lz + 1.2)];
+  // a turtle basks on the bund between the first lily field and its east neighbour;
+  // a cousin herd grazes the dry rim on the north side
+  const turtle = toWorld(lily[0].lx + CELL / 2, lily[0].lz + 1.5);
+  // (the dry rim is a narrow ring at q ≈ 0.72–0.78, between the fields and the beach)
+  const herd = [-0.22, 0, 0.22].map((a) => toWorld(Math.sin(a) * 0.75 * I.rx, -Math.cos(a) * 0.75 * I.rz));
+  return { island: I, CELL, fields, perches, turtle, herd, toWorld };
+})();
+
 function falloff(d, r) {
   if (d >= r) return 0;
   const t = 1 - d / r;
@@ -210,6 +241,10 @@ function splatMaterial(baseMap, altTex, altScale = 1) {
 // how much of the alt texture each biome shows: (x, z, height, local x/z, q, normal.y) → 0..1
 const SPLAT = {
   // mineral crust over the treads and every riser; a few grassy patches on the treads
+  // mud on the flooded field floors; the bunds between them and the dry rim stay grassy
+  paddies(x, z, h, lx, lz, q) {
+    return smooth(clamp01((0.82 - q) / 0.12)) * smooth(clamp01((0.22 - h) / 0.2));
+  },
   terraces(x, z, h, lx, lz, q, ny) {
     const crust = smooth(clamp01((h - 0.05) / 0.4));
     const grass = smooth(clamp01((fbm(x * 0.11 + 3, z * 0.11 - 4) - 0.58) / 0.12));
@@ -287,7 +322,7 @@ export function createWorld(scene, T) {
     marsh:     { land: 0xffffff, sand: 0xe8c98f, deep: 0x7a8f6a },
     terraces:  { land: 0xfff0d2, sand: 0xf1dcb4, deep: 0x8c9478, cliff: 0xf6dcc2,     // soft apricot risers
                  alt: 'travertine', altScale: 0.9 },
-    paddies:   { land: 0xe4ffc4, sand: 0xb8a26e, deep: 0x7a8456 },
+    paddies:   { land: 0xe4ffc4, sand: 0xb8a26e, deep: 0x7a8456, alt: 'mud', altScale: 1.6 },
     riverbank: { land: 0xf2ffe0, sand: 0xc9ad78, deep: 0x6f7f5c },
     islet:     { land: 0xf0e6cc, sand: 0xe8c98f, deep: 0x7a8f6a },
   };
@@ -808,6 +843,100 @@ export function createWorld(scene, T) {
     }
   }
 
+  // ---------- the Rice Paddies: rice in rows, lily pads, a lotus or two ----------
+  {
+    const { CELL, fields, perches, island: I } = PADDY;
+    const R = mulberry(7717);
+    // a painted decal of seedlings just above the water in every planted field…
+    const riceTex = T.rice.clone();
+    riceTex.wrapS = riceTex.wrapT = THREE.RepeatWrapping;
+    riceTex.repeat.set(1.6, 1.6);
+    riceTex.colorSpace = THREE.SRGBColorSpace;
+    const decalMat = new THREE.MeshLambertMaterial({ map: riceTex, transparent: true, alphaTest: 0.3, depthWrite: false });
+    const decalGeo = new THREE.PlaneGeometry(CELL - 1.2, CELL - 1.2).rotateX(-Math.PI / 2);
+    // …and real tufts standing in rows, so the fields have height from a distance
+    const tuftGeo = (() => {
+      const parts = [];
+      for (let k = 0; k < 5; k++) {
+        const c = new THREE.ConeGeometry(0.05, 0.6 + (k % 2) * 0.18, 3).toNonIndexed();
+        c.translate(0, 0.28, 0);
+        c.rotateZ(0.32 * Math.cos(k * 1.26));
+        c.rotateX(0.32 * Math.sin(k * 1.26));
+        parts.push(c);
+      }
+      const n = parts.reduce((a, c) => a + c.attributes.position.count, 0);
+      const pos = new Float32Array(n * 3);
+      let o = 0;
+      for (const c of parts) { pos.set(c.attributes.position.array, o); o += c.attributes.position.array.length; }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      return g;
+    })();
+    const planted = fields.filter((f) => f.planted);
+    const ROW = 0.62, PER = Math.floor((CELL - 1.6) / ROW) + 1;
+    const tufts = new THREE.InstancedMesh(tuftGeo, new THREE.MeshLambertMaterial({ color: 0xa6e65c }),
+      planted.length * PER * PER);
+    const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    let ti = 0;
+    for (const f of planted) {
+      if (f.whole) {   // (an edge field's decal would hang over its bund)
+        const decal = new THREE.Mesh(decalGeo, decalMat);
+        decal.position.set(f.x, 0.035, f.z);
+        decal.rotation.y = -I.rot;
+        scene.add(decal);
+      }
+      for (let a = 0; a < PER; a++) {
+        for (let b = 0; b < PER; b++) {
+          const p = PADDY.toWorld(f.lx - (CELL - 1.6) / 2 + a * ROW + (R() - 0.5) * 0.12,
+            f.lz - (CELL - 1.6) / 2 + b * ROW + (R() - 0.5) * 0.12);
+          const h = heightAt(p.x, p.z);
+          const rr = R(), k = 0.8 + R() * 0.45;
+          if (h > -0.03) continue;   // rice only grows in the water
+          v.set(p.x, h, p.z);
+          q4.setFromEuler(e.set(0, rr * 6.3, 0));
+          sc.set(k, k, k);
+          tufts.setMatrixAt(ti++, m4.compose(v, q4, sc));
+        }
+      }
+    }
+    tufts.count = ti;
+    scene.add(tufts);
+    world.riceTufts = tufts;
+
+    // lily pads float in the unplanted fields (and under each frog perch)
+    const lilyTex = T.lilypad.clone();
+    lilyTex.colorSpace = THREE.SRGBColorSpace;
+    const pads = [];
+    for (const f of fields.filter((ff) => !ff.planted)) {
+      for (let k = 0; k < 9; k++) {
+        const p = PADDY.toWorld(f.lx + (R() - 0.5) * (CELL - 2.2), f.lz + (R() - 0.5) * (CELL - 2.2));
+        const r = 0.45 + R() * 0.4;
+        if (heightAt(p.x, p.z) > -0.05 || pads.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < o.r + r)) continue;
+        pads.push({ x: p.x, z: p.z, r, rot: R() * 6.3 });
+      }
+    }
+    for (const p of perches) pads.push({ x: p.x, z: p.z, r: 0.95, rot: R() * 6.3, perch: true });
+    const padMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2),
+      new THREE.MeshLambertMaterial({ map: lilyTex, alphaTest: 0.5, side: THREE.DoubleSide }), pads.length);
+    pads.forEach((p, i) => {
+      v.set(p.x, 0.03 + (i % 3) * 0.002, p.z);
+      q4.setFromEuler(e.set(0, p.rot, 0));
+      sc.set(p.r, 1, p.r);
+      padMesh.setMatrixAt(i, m4.compose(v, q4, sc));
+    });
+    scene.add(padMesh);
+    world.lilyPads = pads;
+    // a few pink lotus flowers sitting on pads
+    const lotusMat = new THREE.MeshLambertMaterial({ map: petalMat.map, color: 0xffc4dc });
+    for (const p of pads.filter((pp) => !pp.perch && pp.r > 0.7).slice(0, 7)) {
+      const lotus = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), lotusMat);
+      lotus.position.set(p.x + 0.15, 0.17, p.z - 0.1);
+      lotus.scale.y = 0.7;
+      scene.add(lotus);
+    }
+  }
+
   // ---------- neighbour islands: trees, bushes, rocks, reeds ----------
   // Each island has its own rng, so the home layout above (and everything
   // below that still draws from `rng`) is exactly what it always was.
@@ -823,7 +952,10 @@ export function createWorld(scene, T) {
       const lx = Math.cos(a) * q * I.rx, lz = Math.sin(a) * q * I.rz;
       return { x: I.x + lx * I.cos - lz * I.sin, z: I.z + lx * I.sin + lz * I.cos };
     };
-    const inPool = (x, z, pad) => world.pools.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + pad);
+    // keep pools and the paddies' critter spots free of trees and rocks
+    const keepClear = [...PADDY.herd, PADDY.turtle].map((c) => ({ ...c, r: 1.2 }));
+    const inPool = (x, z, pad) => world.pools.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + pad) ||
+      keepClear.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + pad);
     const solidNear = (x, z, r) => world.colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + r + 2.2);
     const nTrees = I.biome === 'islet' ? 0 : Math.round(I.rx * I.rz * DENSITY[I.biome]);
     let placed = 0;

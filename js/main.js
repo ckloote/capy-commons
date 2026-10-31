@@ -24,7 +24,7 @@ window.addEventListener('resize', () => {
 // ---------- texture loading ----------
 const NAMES = ['grass', 'path', 'water', 'bark', 'canopy', 'stone', 'petals',
   'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales',
-  'travertine'];
+  'travertine', 'mud', 'rice.png', 'lilypad.png'];
 const loader = new THREE.TextureLoader();
 const T = {};
 const texturesReady = Promise.all(NAMES.map((n) => new Promise((res, rej) => {

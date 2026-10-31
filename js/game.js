@@ -1,7 +1,7 @@
 // game.js — friends, items, conga line, grove delivery, finale, particles, UI
 import * as THREE from 'three';
 import { BUILDERS, makeDuckling, makeOcelot, makeDolphin, makeTurtle, makeFrog, makeSongbird, makeCousin } from './creatures.js';
-import { heightAt, GROVE, ISLAND_R, ISLANDS } from './world.js';
+import { heightAt, GROVE, ISLAND_R, ISLANDS, PADDY } from './world.js';
 
 // ---------- emoji sprite helper ----------
 const spriteCache = {};
@@ -171,8 +171,12 @@ const CRITTERS = [
   ['frog', -21.9, 33], ['frog', -20, 37.5],                 // NW pond edge
   ['songbird', -8, -14], ['songbird', 7, -11], ['songbird', -2, -20],   // meadow, north of spawn
   ['cousin', -21, 44], ['cousin', -18, 47], ['cousin', -24, 41],        // southwest marsh herd
+  // the Rice Paddies (phase 3c): frogs on lily pads, a turtle on a bund, a cousin herd on the rim
+  ...PADDY.perches.map((p) => ['frog', p.x, p.z]),
+  ['turtle', PADDY.turtle.x, PADDY.turtle.z],
+  ...PADDY.herd.map((p) => ['cousin', p.x, p.z]),
 ];
-const RIDE_CAP = 4;          // per stack (head, back)
+const RIDE_CAP = 5;          // per stack (head, back): 10 riders in all, so every one fits
 
 // ---------- UI helpers ----------
 const $ = (id) => document.getElementById(id);

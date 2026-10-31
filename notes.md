@@ -200,7 +200,7 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    horizon. Watch swim length: the ocean is ~6 deep and featureless.
    Split into four commits: **3a** archipelago engine ✅ (commit 18);
    **3b** terraces (pools, mineral texture) ✅ (commit 19); **3c** paddies (rice, mud,
-   lily pads, critters); **3d** riverbank + current. Agreed for this phase:
+   lily pads, critters) ✅ (commit 20); **3d** riverbank + current. Agreed for this phase:
    the new islands hold *optional* content (the 8 friends and the Gathering
    don't change); the home spring stays; new textures come from Gemini's
    `gemini-nano-banana-2.1` (needs `GEMINI_API_KEY` in the environment).
@@ -656,6 +656,42 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     zoomies and the mineral toast; the home spring still does the same with
     the yuzu toast; full run (8 befriended, walked to the grove, 8 homed,
     8 runes, finale); zero JS errors.
+
+- **Commit 20 (Phase 3c): The Rice Paddies.**
+  - `PADDY` (exported from `world.js`, pure geometry + its own `mulberry`):
+    the fields are the 7.5-unit cells of the paddies' local grid whose centre
+    is in the flooded middle (`whole` if all four corners are). ~62% are
+    planted; the three whole fields nearest the north shore (the side you
+    swim in from) are always lily fields. It also holds the critter spots,
+    so `game.js` can place them without a world reference.
+  - Splat: mud on the flooded field floors only (`q` mask × "below 0.22");
+    the bunds and the dry rim stay grassy, so the grid reads as green paths
+    between brown water. The mud tile was lightened (gamma 0.75, contrast
+    ×0.7). A first try with muddy bunds read as a dark smear.
+  - Rice: one `InstancedMesh` of 5-blade cone tufts in 0.62-unit rows (556
+    tufts, one draw call), only where there is water; plus a painted decal
+    of seedlings floating at 0.035 on each whole planted field.
+    `rice.png` is the Gemini tile with alpha keyed on green-over-red/blue,
+    so only the blades are left; the opaque `rice.jpg` was dropped.
+  - Lily pads: one `InstancedMesh` of `lilypad.png` quads (alphaTest), up
+    to 9 per lily field, non-overlapping, only in water; 7 pink lotus blobs
+    on the bigger pads. Both PNG cut-outs were palette-quantized (600 → 44 KB
+    for the rice).
+  - Critters (added to `CRITTERS`): 2 frogs on perch pads (each perch gets
+    its own large pad), a turtle on the bund east of the first lily field,
+    and a herd of 3 cousins on the north rim. The dry rim is only a ring at
+    q ≈ 0.72–0.78 (measured: fields end at 0.7, the shore drop starts by
+    0.8); the first herd spots at q ≈ 0.9 were in the sea. Island props
+    keep 1.2 clear of the turtle and herd.
+  - `RIDE_CAP` 4 → 5 per stack: there are now 10 riders (3 songbirds,
+    4 frogs, 3 turtles), and at 4 the last two would have walked in the
+    parade instead.
+  - Verified headless (900×600, 375×667 touch): 556 tufts, 50 pads, 6 paddy
+    critters all on the paddies and clear of colliders; frogs in the water,
+    turtle and herd on dry ground; field depth is wading depth for a
+    duckling; all 10 riders aboard (5 + 5); a paddy cousin calmed with one
+    friend in the parade joins it; full regression run to the finale; zero
+    JS errors.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
