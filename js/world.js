@@ -39,13 +39,97 @@ const PONDS = [
   { x: -18, z: 34, r: 9, d: 2.6 },
 ];
 
+// ---------- the archipelago ----------
+// Home is the original island (its height function below is untouched).
+// Neighbours are ellipses: rx/rz half-axes, rot (radians), top = dome height,
+// rough = noise amount, shore = width of the beach drop-off, biome = shaper.
+export const ISLANDS = [
+  { id: 'home', name: 'the Commons', x: 0, z: 0, rx: ISLAND_R, rz: ISLAND_R, biome: 'marsh' },
+  { id: 'terraces', name: 'the Steaming Terraces', x: 85, z: -55, rx: 24, rz: 22, rot: 0.5,
+    top: 6, rough: 1, shore: 8, seed: 31, biome: 'terraces',
+    arrive: 'The Steaming Terraces — warm stone steps, stacked like a sleepy cake. ♨️' },
+  { id: 'paddies', name: 'the Rice Paddies', x: 20, z: 100, rx: 29, rz: 26, rot: -0.2,
+    top: 1.5, rough: 0.35, shore: 7, seed: 57, biome: 'paddies',
+    arrive: 'The Rice Paddies — the water here is ankle-deep and warm. 🌾' },
+  { id: 'riverbank', name: 'the Riverbank', x: -100, z: 30, rx: 19, rz: 31, rot: 0.15,
+    top: 3.6, rough: 0.9, shore: 8, seed: 83, biome: 'riverbank',
+    arrive: 'The Riverbank — a lazy river winds right through the middle. 🏞️' },
+  // tiny rocky islets: landmarks and rest stops in the open water
+  { id: 'islet-se', name: 'a little islet', x: 50, z: 70, rx: 6, rz: 5, rot: 0.8,
+    top: 2.2, rough: 0.3, shore: 3, seed: 101, biome: 'islet' },
+  { id: 'islet-w', name: 'a little islet', x: -74, z: -16, rx: 5.5, rz: 6.5, rot: 0.3,
+    top: 2.2, rough: 0.3, shore: 3, seed: 113, biome: 'islet' },
+];
+// the player can swim anywhere inside this circle (the old limit was ISLAND_R + 4)
+export const SEA_R = 150;
+
+for (const I of ISLANDS) {
+  if (I.id === 'home') continue;
+  I.rot = I.rot || 0;
+  I.cos = Math.cos(I.rot); I.sin = Math.sin(I.rot);
+  I.rm = (I.rx + I.rz) / 2;
+  I.reach = Math.max(I.rx, I.rz) * (1 + (I.shore * 1.75) / I.rm) + 1;   // bbox for a cheap reject
+}
+
 function falloff(d, r) {
   if (d >= r) return 0;
   const t = 1 - d / r;
   return smooth(t);
 }
 
-export function heightAt(x, z) {
+// local frame of a neighbour island: lx across, lz along its long axis
+function localOf(I, x, z) {
+  const dx = x - I.x, dz = z - I.z;
+  return { lx: dx * I.cos + dz * I.sin, lz: -dx * I.sin + dz * I.cos };
+}
+
+// one neighbour's terrain, or -Infinity outside its footprint. It sinks an
+// extra 4 below the ocean floor before the cutoff so max() with home's sea
+// floor never shows a step.
+function neighbourHeight(I, x, z) {
+  if (Math.abs(x - I.x) > I.reach || Math.abs(z - I.z) > I.reach) return -Infinity;
+  const { lx, lz } = localOf(I, x, z);
+  const q = Math.hypot(lx / I.rx, lz / I.rz);
+  const d = q * I.rm;
+  const S = I.shore;
+  if (d > I.rm + S * 1.75) return -Infinity;
+  let h = I.top * Math.max(0, 1 - q * q) + (fbm(x * 0.05 + I.seed, z * 0.05 + I.seed * 1.3) * 2 - 0.7) * I.rough;
+  h = BIOME[I.biome](h, lx, lz, q, I);
+  if (d > I.rm - S) h -= smooth(Math.min(1, (d - (I.rm - S)) / (S * 1.75))) * 6.5;
+  if (d > I.rm + S * 0.75) h -= smooth(Math.min(1, (d - (I.rm + S * 0.75)) / S)) * 4;
+  return h;
+}
+
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const BIOME = {
+  islet: (h) => h,
+  // stepped treads with short soft risers, like travertine terraces
+  terraces(h) {
+    if (h < 0.3) return h;
+    const STEP = 0.8, k = (h - 0.3) / STEP, f = k - Math.floor(k);
+    return 0.3 + (Math.floor(k) + smooth(clamp01((f - 0.78) / 0.22))) * STEP;
+  },
+  // a grid of flooded fields (wading depth for every species) between bunds you can walk
+  paddies(h, lx, lz, q) {
+    const CELL = 7.5;
+    const bx = Math.abs(((lx % CELL) + CELL) % CELL - CELL / 2);
+    const bz = Math.abs(((lz % CELL) + CELL) % CELL - CELL / 2);
+    const toBund = CELL / 2 - Math.max(bx, bz);       // 0 on a bund line
+    const field = 0.35 + (-0.09 - 0.35) * smooth(clamp01((toBund - 0.45) / 0.55));
+    const m = smooth(clamp01((0.78 - q) / 0.14));      // a dry rim of land around the fields
+    return h + (field - h) * m;
+  },
+  // a lazy river along the long axis, meandering, open to the sea at both ends
+  riverbank(h, lx, lz) {
+    const dist = Math.abs(lx - riverCentre(lz));
+    const c = smooth(clamp01(1 - dist / 5));
+    return h + (-1.3 - h) * c;
+  },
+};
+export function riverCentre(lz) { return 4 * Math.sin(lz * 0.12); }
+
+// the original single-island height function, unchanged (home invariance)
+function homeHeight(x, z) {
   const r = Math.hypot(x, z);
   // island dome
   let h = 3.4 * Math.max(0, 1 - (r / ISLAND_R) ** 2);
@@ -64,6 +148,31 @@ export function heightAt(x, z) {
   h += 1.2 * falloff(Math.hypot(x - SPRING.x, z - SPRING.z), 10);    // spring hill
   h += 0.8 * falloff(Math.hypot(x, z), 10);                          // spawn meadow
   return h;
+}
+
+export function heightAt(x, z) {
+  let h = homeHeight(x, z);
+  for (let i = 1; i < ISLANDS.length; i++) {
+    const n = neighbourHeight(ISLANDS[i], x, z);
+    if (n > h) h = n;
+  }
+  return h;
+}
+
+// which island's terrain is on top here (index into ISLANDS)
+function ownerAt(x, z) {
+  let best = 0, h = homeHeight(x, z);
+  for (let i = 1; i < ISLANDS.length; i++) {
+    const n = neighbourHeight(ISLANDS[i], x, z);
+    if (n > h) { h = n; best = i; }
+  }
+  return best;
+}
+
+// the island you're standing on (dry land or shallows), or null in open water
+export function islandAt(x, z) {
+  if (heightAt(x, z) < -1) return null;
+  return ISLANDS[ownerAt(x, z)];
 }
 
 export function isWater(x, z) { return heightAt(x, z) < 0.02; }
@@ -138,39 +247,79 @@ export function createWorld(scene, T) {
   scene.add(sun);
   world.hemi = hemi; world.sun = sun;
 
-  // terrain
-  const SEG = 130, SIZE = 170;
-  const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
-  geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position;
-  const colors = new Float32Array(pos.count * 3);
-  const cGrass = new THREE.Color(0xffffff);
-  const cSand = new THREE.Color(0xe8c98f);
-  const cDeep = new THREE.Color(0x7a8f6a);
+  // terrain: one mesh per island. Each keeps only the triangles that touch its
+  // own ground (ownerAt), so neighbouring meshes never overlap and z-fight;
+  // a dark sea-floor plane underneath fills any gap in the deep water.
   const tmp = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i);
-    const h = heightAt(x, z);
-    pos.setY(i, h);
-    if (h < 0.35) tmp.lerpColors(cDeep, cSand, Math.min(1, Math.max(0, (h + 1.2) / 1.55)));
-    else tmp.copy(cGrass).lerp(cSand, Math.max(0, 1 - (h - 0.35) / 0.5) * 0.55);
-    colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
+  const PALETTE = {
+    marsh:     { land: 0xffffff, sand: 0xe8c98f, deep: 0x7a8f6a },
+    terraces:  { land: 0xfff0d2, sand: 0xf1dcb4, deep: 0x8c9478, cliff: 0xfff6ea },   // pale travertine risers
+    paddies:   { land: 0xe4ffc4, sand: 0xb8a26e, deep: 0x7a8456 },
+    riverbank: { land: 0xf2ffe0, sand: 0xc9ad78, deep: 0x6f7f5c },
+    islet:     { land: 0xf0e6cc, sand: 0xe8c98f, deep: 0x7a8f6a },
+  };
+  function buildTerrain(owner, cx, cz, size, seg, repeat) {
+    const pal = PALETTE[ISLANDS[owner].biome];
+    const cLand = new THREE.Color(pal.land), cSand = new THREE.Color(pal.sand), cDeep = new THREE.Color(pal.deep);
+    const geo = new THREE.PlaneGeometry(size, size, seg, seg);
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(cx, 0, cz);
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    const mine = new Uint8Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      const h = heightAt(x, z);
+      pos.setY(i, h);
+      mine[i] = ownerAt(x, z) === owner ? 1 : 0;
+      if (h < 0.35) tmp.lerpColors(cDeep, cSand, Math.min(1, Math.max(0, (h + 1.2) / 1.55)));
+      else tmp.copy(cLand).lerp(cSand, Math.max(0, 1 - (h - 0.35) / 0.5) * 0.55);
+      colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b;
+    }
+    const idx = geo.index.array, keep = [];
+    for (let k = 0; k < idx.length; k += 3) {
+      if (mine[idx[k]] || mine[idx[k + 1]] || mine[idx[k + 2]]) keep.push(idx[k], idx[k + 1], idx[k + 2]);
+    }
+    geo.setIndex(keep);
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+    if (pal.cliff) {
+      // steep faces (terrace risers) catch a different colour so the steps read
+      const nrm = geo.attributes.normal, cCliff = new THREE.Color(pal.cliff);
+      for (let i = 0; i < pos.count; i++) {
+        const k = clamp01((0.93 - nrm.getY(i)) / 0.2);
+        if (k <= 0 || pos.getY(i) < 0.3) continue;
+        tmp.fromArray(colors, i * 3).lerp(cCliff, k).multiplyScalar(1 + 0.25 * k);
+        tmp.toArray(colors, i * 3);
+      }
+    }
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tile(T.grass.clone(), repeat), vertexColors: true }));
+    scene.add(mesh);
+    return mesh;
   }
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-  const terrain = new THREE.Mesh(
-    geo,
-    new THREE.MeshLambertMaterial({ map: tile(T.grass, 26), vertexColors: true })
-  );
-  scene.add(terrain);
+  // home: the original 170×170 / 130-segment plane (heights unchanged)
+  world.terrains = [buildTerrain(0, 0, 0, 170, 130, 26)];
+  for (let i = 1; i < ISLANDS.length; i++) {
+    const I = ISLANDS[i];
+    const size = 2 * I.reach + 4;
+    // terrace risers are narrow, so that island gets a finer mesh
+    const cell = I.biome === 'terraces' ? 0.6 : 1.3;
+    world.terrains.push(buildTerrain(i, I.x, I.z, size, Math.ceil(size / cell), 26 * size / 170));
+  }
+  const seaFloor = new THREE.Mesh(new THREE.PlaneGeometry(700, 700),
+    new THREE.MeshLambertMaterial({ map: tile(T.grass.clone(), 107), color: 0x6c805c }));
+  seaFloor.rotation.x = -Math.PI / 2;
+  seaFloor.position.y = -6.6;
+  scene.add(seaFloor);
 
   // water
   const waterMat = new THREE.MeshLambertMaterial({
-    map: tile(T.water, 11), transparent: true, opacity: 0.85,
+    map: tile(T.water, 15), transparent: true, opacity: 0.85,
     color: 0xd6e2bc,
   });
   T.water.anisotropy = 16;
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), waterMat);
+  // big enough that its edge stays in the fog even from the outer sea bound
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), waterMat);
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0;
   scene.add(water);
@@ -205,12 +354,12 @@ export function createWorld(scene, T) {
     world.flowers.push({ g, x, z, picked: false, regrowAt: 0, grow: 1 });
   }
 
-  function makeTree(s, palm) {
+  function makeTree(s, palm, R = rng) {   // R: neighbour islands pass their own rng
     const g = new THREE.Group();
     if (palm) {
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.28 * s, 5.4 * s, 6), barkMat);
       trunk.position.y = 2.7 * s;
-      trunk.rotation.z = (rng() - 0.5) * 0.25;
+      trunk.rotation.z = (R() - 0.5) * 0.25;
       g.add(trunk);
       for (let i = 0; i < 6; i++) {
         const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5 * s, 3.1 * s, 4), canopyMat2);
@@ -225,11 +374,11 @@ export function createWorld(scene, T) {
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * s, 0.38 * s, 2.6 * s, 6), barkMat);
       trunk.position.y = 1.3 * s;
       g.add(trunk);
-      const n = 2 + Math.floor(rng() * 2);
+      const n = 2 + Math.floor(R() * 2);
       for (let i = 0; i < n; i++) {
         const r = (1.5 - i * 0.35) * s;
         const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), canopyMat);
-        c.position.set((rng() - 0.5) * 0.8 * s, (2.6 + i * 0.9) * s, (rng() - 0.5) * 0.8 * s);
+        c.position.set((R() - 0.5) * 0.8 * s, (2.6 + i * 0.9) * s, (R() - 0.5) * 0.8 * s);
         g.add(c);
       }
     }
@@ -536,6 +685,106 @@ export function createWorld(scene, T) {
     scene.add(s);
     world.butterflies.push(s);
   }
+
+  // ---------- neighbour islands: trees, bushes, rocks, reeds ----------
+  // Each island has its own rng, so the home layout above (and everything
+  // below that still draws from `rng`) is exactly what it always was.
+  const reedMat = new THREE.MeshLambertMaterial({ color: 0x4f7038 });
+  const reedTipMat = new THREE.MeshLambertMaterial({ color: 0x6b4a2f });
+  const DENSITY = { terraces: 0.018, paddies: 0.035, riverbank: 0.045, islet: 0 };
+  world.calmSpots = [{ x: 0, z: 4, island: 'home' }, { x: SPRING.x, z: SPRING.z, island: 'home' }];
+  for (let i = 1; i < ISLANDS.length; i++) {
+    const I = ISLANDS[i];
+    const R = mulberry(9000 + I.seed);
+    const pick = (qMax) => {
+      const a = R() * Math.PI * 2, q = Math.sqrt(R()) * qMax;
+      const lx = Math.cos(a) * q * I.rx, lz = Math.sin(a) * q * I.rz;
+      return { x: I.x + lx * I.cos - lz * I.sin, z: I.z + lx * I.sin + lz * I.cos };
+    };
+    const solidNear = (x, z, r) => world.colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + r + 2.2);
+    const nTrees = I.biome === 'islet' ? 0 : Math.round(I.rx * I.rz * DENSITY[I.biome]);
+    let placed = 0;
+    for (let k = 0; k < nTrees * 3 && placed < nTrees; k++) {    // up to 3 tries per tree
+      const { x, z } = pick(0.92);
+      const h = heightAt(x, z);
+      if (h < 0.7 || ownerAt(x, z) !== i) continue;
+      const s = 0.7 + R() * 0.8;
+      const palm = R() < (I.biome === 'paddies' ? 0.6 : 0.3);
+      const tree = makeTree(s, palm, R);
+      tree.position.set(x, h - 0.1, z);
+      tree.rotation.y = R() * Math.PI * 2;
+      scene.add(tree);
+      const tr = (palm ? 0.32 : 0.44) * s;
+      if (!solidNear(x, z, tr)) world.colliders.push({ x, z, r: tr });
+      placed++;
+    }
+    if (I.biome === 'islet') {
+      // one leaning palm on the crown of every islet
+      const tree = makeTree(1, true, R);
+      tree.position.set(I.x + 1, heightAt(I.x + 1, I.z) - 0.1, I.z);
+      tree.rotation.y = R() * Math.PI * 2;
+      scene.add(tree);
+      world.colliders.push({ x: I.x + 1, z: I.z, r: 0.32 });
+    }
+    const nSmall = Math.round(I.rx * I.rz * (I.biome === 'islet' ? 0.3 : 0.06));
+    for (let k = 0; k < nSmall; k++) {
+      const { x, z } = pick(1.05);
+      if (ownerAt(x, z) !== i) continue;
+      const h = heightAt(x, z);
+      if (h < 0.15 && h > -0.7 && I.biome !== 'paddies') {
+        const reed = new THREE.Group();
+        const n = 3 + Math.floor(R() * 4);
+        for (let m = 0; m < n; m++) {
+          const st = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 1.4 + R(), 4), reedMat);
+          st.position.set((R() - 0.5) * 0.7, 0.7, (R() - 0.5) * 0.7);
+          reed.add(st);
+          const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 4), reedTipMat);
+          tip.position.set(st.position.x, st.position.y + 0.85, st.position.z);
+          reed.add(tip);
+        }
+        reed.position.set(x, Math.max(h, -0.2), z);
+        scene.add(reed);
+      } else if (h > 0.4) {
+        const kind = R();
+        if (kind < 0.5 && I.biome !== 'islet') {
+          const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5 + R() * 0.6, 1), canopyMat);
+          bush.position.set(x, h + 0.25, z);
+          bush.scale.y = 0.75;
+          scene.add(bush);
+        } else {
+          const rockR = 0.3 + R() * (I.biome === 'terraces' || I.biome === 'islet' ? 0.7 : 0.5);
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rockR, 0), stoneMat);
+          rock.position.set(x, h + 0.15, z);
+          rock.rotation.set(R() * 3, R() * 3, R() * 3);
+          scene.add(rock);
+          if (rockR > 0.45 && !solidNear(x, z, rockR)) world.colliders.push({ x, z, r: rockR * 0.85 });
+        }
+      }
+    }
+    // a calm spot to wander back to after a stress-out: the open dry ground
+    // nearest the island's middle
+    if (I.biome !== 'islet') {
+      let spot = null;
+      for (let r = 0; r < I.rm && !spot; r += 1) {
+        for (let a = 0; a < Math.PI * 2 && !spot; a += 0.4) {
+          const x = I.x + Math.cos(a) * r, z = I.z + Math.sin(a) * r;
+          if (heightAt(x, z) > 0.3 && ownerAt(x, z) === i &&
+              !world.colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + 1.5)) spot = { x, z, island: I.id };
+        }
+      }
+      if (spot) world.calmSpots.push(spot);
+    }
+  }
+
+  // warm water that tops up zen (and gives the yuzu zoomies). Terrace pools join in Phase 3b.
+  world.springs = [{ x: SPRING.x, z: SPRING.z, r: 3.4 }];
+  // distance to the nearest spring, scaled so `< 3.4` means "in the water" for any pool size
+  world.springDist = (x, z) => {
+    let best = Infinity;
+    for (const s of world.springs) best = Math.min(best, Math.hypot(x - s.x, z - s.z) * 3.4 / s.r);
+    return best;
+  };
+  world.islandAt = islandAt;
 
   // update hook
   let wt = 0;

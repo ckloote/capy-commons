@@ -1,6 +1,6 @@
 // main.js — bootstrap, player controller, camera, render loop
 import * as THREE from 'three';
-import { createWorld, heightAt, ISLAND_R, GROVE, SPRING } from './world.js';
+import { createWorld, heightAt, SEA_R } from './world.js';
 import { makeCapybara } from './creatures.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
@@ -87,7 +87,7 @@ function step(dt, t) {
   if (!wander && game.zen <= 0) {
     napping = false;
     document.getElementById('btn-nap').classList.remove('napping');
-    const spots = [{ x: 0, z: 4 }, { x: SPRING.x, z: SPRING.z }];
+    const spots = world.calmSpots.slice();   // spawn, the spring, and one per neighbour island
     spots.sort((a, b) =>
       Math.hypot(g.position.x - a.x, g.position.z - a.z) -
       Math.hypot(g.position.x - b.x, g.position.z - b.z));
@@ -149,7 +149,7 @@ function step(dt, t) {
     let nz = g.position.z + dz * speed * mv.len * dt;
     const solid = world.collide(nx, nz, 0.55);
     nx = solid.x; nz = solid.z;
-    if (Math.hypot(nx, nz) < ISLAND_R + 4) {
+    if (Math.hypot(nx, nz) < SEA_R) {
       g.position.x = nx; g.position.z = nz;
     }
     const targetRot = Math.atan2(dx, dz);

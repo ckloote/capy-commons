@@ -60,6 +60,12 @@ wear it for the rest of the game, and it earns a big chunk of trust for free. Pi
 capybara — come back with friends in your parade and push it into the sea
 together. It doesn't forget a favour.
 
+**There's more out there.** Look out from the beaches: the Commons isn't
+alone. Steaming stone terraces lie to the northeast, rice paddies to the
+south, and a river island to the west, with a couple of palm islets in
+between. Your whole parade swims with you. Nothing out there is needed
+for the Gathering; they're places to explore.
+
 Capybaras can swim. The hot spring in the west does something nice.
 Squeak near your parade and see what happens.
 

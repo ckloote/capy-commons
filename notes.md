@@ -198,6 +198,12 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    (`ISLAND_R + 4` in `main.js`) becomes an outer-sea bound; fog far
    (210) and water plane (500) re-checked so neighbours read on the
    horizon. Watch swim length: the ocean is ~6 deep and featureless.
+   Split into four commits: **3a** archipelago engine ✅ (commit 18);
+   **3b** terraces (pools, mineral texture); **3c** paddies (rice, mud,
+   lily pads, critters); **3d** riverbank + current. Agreed for this phase:
+   the new islands hold *optional* content (the 8 friends and the Gathering
+   don't change); the home spring stays; new textures come from Gemini's
+   `gemini-nano-banana-2.1` (needs `GEMINI_API_KEY` in the environment).
 4. **Diplomacy puzzles**, one per gate: bird-on-head clears mist path;
    weight switch lowers a log bridge (procession piles on); capy herd
    tramples the reed wall to the riverbank.
@@ -565,6 +571,57 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     spot and settles; the necklace goes to the close follower, not the far
     waiting friend. All 5 failed on the old code. Full suite now 42 checks
     at 900×600 and 375×667 touch, zero JS errors.
+
+- **Commit 18 (Phase 3a): The archipelago engine.**
+  - `ISLANDS` in `world.js`: home (the original island, R 60), plus the
+    Steaming Terraces (NE, ~85,−55), the Rice Paddies (S, ~20,100), the
+    Riverbank (W, ~−100,30, long N–S, past the dolphin's beach so the Phase 4
+    ferry has somewhere to go), and two tiny palm islets as landmarks
+    (SE 50,70; W −74,−16). Neighbours are rotated ellipses; open water
+    between home and each is ~15–20 units, a 4–5 s swim.
+  - *Home is bit-identical.* The old `heightAt` is now `homeHeight`,
+    untouched; `heightAt = max(home, neighbours)`. Each neighbour term is
+    `-Infinity` outside its footprint and sinks an extra 4 below the sea
+    floor before the cutoff, so `max` never puts a step in the ocean floor.
+    Neighbour props use their own `mulberry` seeds and are built *after*
+    everything that draws from the home rng; `makeTree` takes an rng
+    argument for that.
+  - Biome shapers (heightfield only; content comes in 3b–3d): terraces are
+    stepped treads (0.8 rise) with risers tinted pale travertine by slope,
+    on a finer 0.6-unit mesh (the risers vanished at 1.3); paddies are a
+    7.5-unit grid of flooded fields at −0.09 (wading depth for every species,
+    ducklings included) between walkable bunds, with a dry rim; the riverbank
+    has a meandering channel at −1.3 open to the sea at both ends.
+  - Terrain: one mesh per island. Home keeps its exact 170×130 plane. Each
+    mesh keeps only triangles touching its own ground (`ownerAt`), so
+    overlapping meshes don't z-fight; a textured sea-floor plane at −6.6
+    fills the open ocean. Water plane 500 → 700 (texture repeat scaled to keep
+    the same density).
+  - Gameplay plumbing: the swim limit `ISLAND_R + 4` became `SEA_R` 150;
+    stress-out wanders to the nearest of `world.calmSpots` (spawn, spring,
+    and the open dry ground nearest each neighbour's middle);
+    `world.springs` + `world.springDist()` replace the single `SPRING`
+    check (only the home spring for now); a one-time arrival toast per
+    island; finale fireflies drift over each neighbour too.
+  - Verified headless (900×600 and 375×667 touch), 19 checks per size plus an
+    invariance diff: home `heightAt` identical on a 0.5 grid for r < 62
+    (the only diffs are 9 deep-water samples at r 62–70 under the islet's
+    footprint), the original 61 colliders an exact prefix, all 65 flowers
+    unchanged, dolphin unmoved; a 3-friend parade swims spawn → terraces →
+    paddies → riverbank with zero follower-above-water frames and arrives
+    within 9 units; arrival recorded; sea bound holds at 150.0; stress-out
+    on the paddies wanders to its calm spot; home spring 30 → 44 zen in 2 s
+    with the boost; full run to finale (8 homed, 8 runes); fireflies over
+    every island; zero JS errors. The old 42-check Phase 2 suite lived in a
+    lost scratchpad, so it wasn't rerun as such; the invariance diff is the
+    stand-in for it.
+  - Test note: the basking turtle is 5.5 from the spring, inside a 3-friend
+    aura, so standing at the spring's centre with a parade starts a calming
+    session (−3/s). That's correct; the test stands on the far side.
+  - Not yet: the terrace steps read only faintly under the grass texture
+    (fixed by the 3b mineral tile and pools). The sandy home shallows show a
+    hard triangle edge through the water at grazing angles; this predates
+    Phase 3.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
