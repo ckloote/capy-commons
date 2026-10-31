@@ -186,6 +186,38 @@ export function tile(tex, n) {
   return tex;
 }
 
+// MeshLambertMaterial with a second texture mixed in by a per-vertex `splat`
+// attribute (0 = base map, 1 = alt map). Both share the base map's UVs;
+// altScale sets the alt texture's tile size relative to the base.
+const WHITE = new THREE.Color(1, 1, 1);
+function nrmY(geo, i) { return geo.attributes.normal.getY(i); }
+function splatMaterial(baseMap, altTex, altScale = 1) {
+  const mat = new THREE.MeshLambertMaterial({ map: baseMap, vertexColors: true });
+  const altMap = tile(altTex.clone(), 1);
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.altMap = { value: altMap };
+    sh.uniforms.altScale = { value: altScale };
+    sh.vertexShader = 'attribute float splat;\nvarying float vSplat;\n' +
+      sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSplat = splat;');
+    sh.fragmentShader = 'uniform sampler2D altMap;\nuniform float altScale;\nvarying float vSplat;\n' +
+      sh.fragmentShader.replace('#include <map_fragment>',
+        'diffuseColor *= mix(texture2D(map, vMapUv), texture2D(altMap, vMapUv * altScale), vSplat);');
+  };
+  mat.customProgramCacheKey = () => 'splat';
+  return mat;
+}
+
+// how much of the alt texture each biome shows: (x, z, height, local x/z, q, normal.y) → 0..1
+const SPLAT = {
+  // mineral crust over the treads and every riser; a few grassy patches on the treads
+  terraces(x, z, h, lx, lz, q, ny) {
+    const crust = smooth(clamp01((h - 0.05) / 0.4));
+    const grass = smooth(clamp01((fbm(x * 0.11 + 3, z * 0.11 - 4) - 0.58) / 0.12));
+    const riser = clamp01((0.95 - ny) / 0.15);
+    return crust * Math.max(1 - grass * 0.9, riser);
+  },
+};
+
 // ---------- world build ----------
 export function createWorld(scene, T) {
   const world = { runes: [], steam: [], yuzu: [], flowers: [], mixers: [] };
@@ -253,7 +285,8 @@ export function createWorld(scene, T) {
   const tmp = new THREE.Color();
   const PALETTE = {
     marsh:     { land: 0xffffff, sand: 0xe8c98f, deep: 0x7a8f6a },
-    terraces:  { land: 0xfff0d2, sand: 0xf1dcb4, deep: 0x8c9478, cliff: 0xfff6ea },   // pale travertine risers
+    terraces:  { land: 0xfff0d2, sand: 0xf1dcb4, deep: 0x8c9478, cliff: 0xf6dcc2,     // soft apricot risers
+                 alt: 'travertine', altScale: 0.9 },
     paddies:   { land: 0xe4ffc4, sand: 0xb8a26e, deep: 0x7a8456 },
     riverbank: { land: 0xf2ffe0, sand: 0xc9ad78, deep: 0x6f7f5c },
     islet:     { land: 0xf0e6cc, sand: 0xe8c98f, deep: 0x7a8f6a },
@@ -293,7 +326,28 @@ export function createWorld(scene, T) {
         tmp.toArray(colors, i * 3);
       }
     }
-    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tile(T.grass.clone(), repeat), vertexColors: true }));
+    let mat;
+    const splatFn = SPLAT[ISLANDS[owner].biome];
+    if (splatFn) {
+      // a second ground texture (travertine, mud, river stones) blended in per vertex
+      const I = ISLANDS[owner];
+      const splat = new Float32Array(pos.count);
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i), h = pos.getY(i);
+        const { lx, lz } = localOf(I, x, z);
+        const k = clamp01(splatFn(x, z, h, lx, lz, Math.hypot(lx / I.rx, lz / I.rz), nrmY(geo, i)));
+        splat[i] = k;
+        // under the alternate texture the biome tint gives way to plain white
+        // (steep faces keep their cliff tint, so terrace risers still read as steps)
+        const flat = clamp01((nrmY(geo, i) - 0.8) / 0.15);
+        tmp.fromArray(colors, i * 3).lerp(WHITE, k * 0.8 * flat).toArray(colors, i * 3);
+      }
+      geo.setAttribute('splat', new THREE.BufferAttribute(splat, 1));
+      mat = splatMaterial(tile(T.grass.clone(), repeat), T[pal.alt], pal.altScale);
+    } else {
+      mat = new THREE.MeshLambertMaterial({ map: tile(T.grass.clone(), repeat), vertexColors: true });
+    }
+    const mesh = new THREE.Mesh(geo, mat);
     scene.add(mesh);
     return mesh;
   }
@@ -686,6 +740,74 @@ export function createWorld(scene, T) {
     world.butterflies.push(s);
   }
 
+  // ---------- the Steaming Terraces: mineral pools on the flat treads ----------
+  // A pool goes wherever a tread is level across its whole disc, so the water
+  // sits flush in the step. They're springs: soaking tops up zen and gives zoomies.
+  world.pools = [];
+  {
+    const ti = ISLANDS.findIndex((I) => I.biome === 'terraces');
+    const I = ISLANDS[ti];
+    const poolMat = new THREE.MeshLambertMaterial({
+      map: tile(T.water.clone(), 1.2), color: 0xb8f4ee, emissive: 0x2a6a66, transparent: true, opacity: 0.9,
+    });
+    const lipMat = new THREE.MeshLambertMaterial({ map: tile(T.travertine.clone(), 2), color: 0xfff4e4 });
+    const level = (x, z, r) => {
+      const h0 = heightAt(x, z);
+      if (h0 < 0.9 || ownerAt(x, z) !== ti) return null;
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2;
+        for (const rr of [r * 0.5, r + 0.15]) {
+          const xx = x + Math.cos(a) * rr, zz = z + Math.sin(a) * rr;
+          if (Math.abs(heightAt(xx, zz) - h0) > 0.035 || ownerAt(xx, zz) !== ti) return null;
+        }
+      }
+      return h0;
+    };
+    // scan outward from the middle so the top treads get pools first
+    const cands = [];
+    for (let gx = -I.rx; gx <= I.rx; gx += 1) {
+      for (let gz = -I.rz; gz <= I.rz; gz += 1) {
+        const x = I.x + gx * I.cos - gz * I.sin, z = I.z + gx * I.sin + gz * I.cos;
+        cands.push({ x, z, d: Math.hypot(gx, gz) });
+      }
+    }
+    cands.sort((a, b) => a.d - b.d);
+    for (const c of cands) {
+      if (world.pools.length >= 6) break;
+      for (const r of [2.4, 1.9, 1.5, 1.2]) {
+        if (world.pools.some((p) => Math.hypot(p.x - c.x, p.z - c.z) < p.r + r + 3)) continue;
+        const h = level(c.x, c.z, r);
+        if (h === null) continue;
+        world.pools.push({ x: c.x, z: c.z, r, h });
+        break;
+      }
+    }
+    for (const p of world.pools) {
+      const g = new THREE.Group();
+      g.position.set(p.x, p.h, p.z);
+      const water = new THREE.Mesh(new THREE.CircleGeometry(p.r, 28), poolMat);
+      water.rotation.x = -Math.PI / 2;
+      water.position.y = 0.07;
+      g.add(water);
+      // a low scalloped rim of mineral crust
+      const lip = new THREE.Mesh(new THREE.TorusGeometry(p.r + 0.05, 0.16, 5, 28), lipMat);
+      lip.rotation.x = -Math.PI / 2;
+      lip.scale.z = 0.55;
+      lip.position.y = 0.06;
+      g.add(lip);
+      for (let i = 0; i < 3; i++) {
+        const st = new THREE.Sprite(steamMat.clone());
+        st.scale.set(1.3 + p.r * 0.2, 1.3 + p.r * 0.2, 1);
+        st.position.set((i - 1) * p.r * 0.45, 0.6, ((i * 7) % 3 - 1) * p.r * 0.3);
+        st.userData.phase = i * 1.05 + p.x * 0.37;
+        g.add(st);
+        world.steam.push(st);
+      }
+      scene.add(g);
+      p.group = g;
+    }
+  }
+
   // ---------- neighbour islands: trees, bushes, rocks, reeds ----------
   // Each island has its own rng, so the home layout above (and everything
   // below that still draws from `rng`) is exactly what it always was.
@@ -701,13 +823,14 @@ export function createWorld(scene, T) {
       const lx = Math.cos(a) * q * I.rx, lz = Math.sin(a) * q * I.rz;
       return { x: I.x + lx * I.cos - lz * I.sin, z: I.z + lx * I.sin + lz * I.cos };
     };
+    const inPool = (x, z, pad) => world.pools.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + pad);
     const solidNear = (x, z, r) => world.colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + r + 2.2);
     const nTrees = I.biome === 'islet' ? 0 : Math.round(I.rx * I.rz * DENSITY[I.biome]);
     let placed = 0;
     for (let k = 0; k < nTrees * 3 && placed < nTrees; k++) {    // up to 3 tries per tree
       const { x, z } = pick(0.92);
       const h = heightAt(x, z);
-      if (h < 0.7 || ownerAt(x, z) !== i) continue;
+      if (h < 0.7 || ownerAt(x, z) !== i || inPool(x, z, 1.5)) continue;
       const s = 0.7 + R() * 0.8;
       const palm = R() < (I.biome === 'paddies' ? 0.6 : 0.3);
       const tree = makeTree(s, palm, R);
@@ -729,7 +852,7 @@ export function createWorld(scene, T) {
     const nSmall = Math.round(I.rx * I.rz * (I.biome === 'islet' ? 0.3 : 0.06));
     for (let k = 0; k < nSmall; k++) {
       const { x, z } = pick(1.05);
-      if (ownerAt(x, z) !== i) continue;
+      if (ownerAt(x, z) !== i || inPool(x, z, 0.8)) continue;
       const h = heightAt(x, z);
       if (h < 0.15 && h > -0.7 && I.biome !== 'paddies') {
         const reed = new THREE.Group();
@@ -776,8 +899,15 @@ export function createWorld(scene, T) {
     }
   }
 
-  // warm water that tops up zen (and gives the yuzu zoomies). Terrace pools join in Phase 3b.
-  world.springs = [{ x: SPRING.x, z: SPRING.z, r: 3.4 }];
+  // warm water that tops up zen (and gives zoomies): the home spring and the terrace pools
+  world.springs = [{ x: SPRING.x, z: SPRING.z, r: 3.4,
+    line: 'Ahh… yuzu warmth soaks in. Zoomies unlocked! ⚡' }];
+  for (const p of world.pools) {
+    world.springs.push({ x: p.x, z: p.z, r: p.r + 0.3, pool: p,
+      line: 'Milky mineral water, hot and fizzy. Every muscle melts. Zoomies unlocked! ♨️⚡' });
+  }
+  // the spring you're soaking in, or null
+  world.springAt = (x, z) => world.springs.find((s) => Math.hypot(x - s.x, z - s.z) < s.r) || null;
   // distance to the nearest spring, scaled so `< 3.4` means "in the water" for any pool size
   world.springDist = (x, z) => {
     let best = Infinity;

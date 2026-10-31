@@ -712,11 +712,13 @@ export class Game {
     // hot spring boost
     const springD = this.world.springDist(player.position.x, player.position.z);
     if (springD < 3.4) {
-      if (t - this.springToastAt > 16) {
+      const spr = this.world.springAt(player.position.x, player.position.z);
+      if (t - this.springToastAt > 16 || (spr && spr !== this.lastSpring && t - this.springToastAt > 4)) {
         this.springToastAt = t;
-        toast('Ahh… yuzu warmth soaks in. Zoomies unlocked! ⚡');
+        toast((spr || this.world.springs[0]).line);
         this.sound.pickup();
       }
+      this.lastSpring = spr;
       this.boostUntil = t + 10;
       if (Math.random() < dt * 3) {
         this.particles.burst('✨', player.position.clone().add(new THREE.Vector3(0, 0.8, 0)), { count: 2, size: 0.3, up: 1.4, life: 0.9 });

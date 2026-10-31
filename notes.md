@@ -199,7 +199,7 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    (210) and water plane (500) re-checked so neighbours read on the
    horizon. Watch swim length: the ocean is ~6 deep and featureless.
    Split into four commits: **3a** archipelago engine ✅ (commit 18);
-   **3b** terraces (pools, mineral texture); **3c** paddies (rice, mud,
+   **3b** terraces (pools, mineral texture) ✅ (commit 19); **3c** paddies (rice, mud,
    lily pads, critters); **3d** riverbank + current. Agreed for this phase:
    the new islands hold *optional* content (the 8 friends and the Gathering
    don't change); the home spring stays; new textures come from Gemini's
@@ -622,6 +622,40 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     (fixed by the 3b mineral tile and pools). The sandy home shallows show a
     hard triangle edge through the water at grazing angles; this predates
     Phase 3.
+
+- **Commit 19 (Phase 3b): The Steaming Terraces.**
+  - Textures: five new tiles from `gemini-nano-banana-2.1` (all of 3b–3d's,
+    generated in one batch): `travertine`, `mud`, `rice`, `riverstones`
+    (512 px JPG like the others) and `lilypad.png` (a 256 px cut-out with
+    alpha keyed off the white background). Travertine came back with a
+    visible tile seam, so it got a half-tile roll-and-blend per axis; the
+    other three tiled cleanly as delivered. The loader takes `name.png` for
+    cut-outs; plain names are still `.jpg`.
+  - Terrain splat: `splatMaterial()` is a MeshLambertMaterial with a second
+    map mixed in by a per-vertex `splat` attribute (`onBeforeCompile`
+    replaces `map_fragment`; both maps share the base UVs, `altScale` sets
+    the alt tile size). Per-biome `SPLAT` functions decide the weight; the
+    vertex tint fades to white under the alt texture except on steep faces.
+    Home has no splat function, so its mesh and material are what they were.
+  - Terraces: travertine over the treads and all risers, with fbm grass
+    patches on the treads. Risers keep a soft apricot tint (a stronger
+    one made the whole slope orange).
+  - Mineral pools: scanned outward from the island's middle on a 1-unit
+    grid; a pool (r 2.4 / 1.9 / 1.5 / 1.2, first that fits) goes where the
+    tread is level within 0.035 at half radius and just past the rim, and
+    ≥3 from other pools. 6 pools: a big one on the summit tread and five
+    small ones on the tier below. Each is a milky turquoise disc, a squashed
+    travertine torus rim and 3 steam puffs. Trees, rocks and bushes skip
+    the pools.
+  - Pools are springs: `world.springs` gains one entry per pool (`r` + 0.3),
+    so zen +6/s and zoomies work unchanged. Each spring has its own `line`;
+    `world.springAt()` picks the toast, and moving to a different spring
+    re-toasts after 4 s instead of 16.
+  - Verified headless (900×600, 375×667 touch): 6 pools, every one level
+    across its disc, no collider inside; soaking 2 s takes zen 30 → 44 with
+    zoomies and the mineral toast; the home spring still does the same with
+    the yuzu toast; full run (8 befriended, walked to the grove, 8 homed,
+    8 runes, finale); zero JS errors.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

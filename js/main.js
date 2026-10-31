@@ -23,13 +23,15 @@ window.addEventListener('resize', () => {
 
 // ---------- texture loading ----------
 const NAMES = ['grass', 'path', 'water', 'bark', 'canopy', 'stone', 'petals',
-  'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales'];
+  'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales',
+  'travertine'];
 const loader = new THREE.TextureLoader();
 const T = {};
 const texturesReady = Promise.all(NAMES.map((n) => new Promise((res, rej) => {
-  loader.load(`assets/textures/${n}.jpg`, (tex) => {
+  const file = n.includes('.') ? n : `${n}.jpg`;   // cut-outs with alpha are .png
+  loader.load(`assets/textures/${file}`, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
-    T[n] = tex; res();
+    T[n.split('.')[0]] = tex; res();
   }, undefined, rej);
 })));
 

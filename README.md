@@ -76,7 +76,9 @@ Squeak near your parade and see what happens.
   every animal is spheres, capsules and cones with a little leg-swing rig.
 - **Textures were generated with Gemini** (`gemini-3.1-flash-image`) as
   seamless painterly tiles — grass, bark, water, fur, feathers, scales — plus
-  the painted title screen. See `assets/textures/`.
+  the painted title screen. The neighbour islands' tiles (travertine, mud,
+  rice, river stones, lily pads) came later from `gemini-nano-banana-2.1`.
+  See `assets/textures/`.
 - **Audio** is synthesized in WebAudio at runtime: squeaks, pentatonic join
   chords (each friend adds a higher step — the island slowly builds a chord),
   rune bells, wind and random birdsong.
