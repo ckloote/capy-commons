@@ -538,6 +538,34 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     from spawn. Instant `_befriend` in tests leaves 💛 icons up until their
     real-time 2.5s timer, so screenshots show big hearts the game never does.
 
+- **Commit 17: PR #5 review fixes** (three P2 findings from the user's
+  review; each reproduced with a new fixed-clock check *before* fixing).
+  1. *Ducklings when Mabel joins through trust or a necklace.* `_befriend`
+     pushed all three ducklings into the parade whatever their state; only
+     the gift path set `withDuck`. Calm-recruiting Mabel with one duckling
+     found gave a 5-long parade with two lost ducklings in it (they counted
+     for the ocelot), and the found one was moved twice a frame (toward
+     you *and* to its conga slot). Now `_befriend` takes only found
+     ducklings (→ `withDuck`); a duckling found later runs to Mabel and
+     slots in behind her and her siblings, or — if she's already at the
+     grove — walks there on its own and settles beside her. The grove
+     handoff sends only `withDuck` ducklings home. (`_mabel()`,
+     `_ducklingSpot()`.)
+  2. *Necklace range.* `_necklaceTarget` returned the "talking" friend with
+     no distance check, and since 2b "talking" reaches the whole aura: with
+     4 friends, E spent the necklace on Luna 6.5 away instead of Tobi 1
+     away. The talking target now has to be within `AURA_BASE` too.
+  3. *Ring near critters.* `_updateAuraRing` only looked at named friends,
+     so calming a cousin or frog with no named friend nearby showed no ring.
+     It now uses `_waitingAll()` like the calm system.
+  - New Scenario D (5 checks): ring while calming a cousin; trust-recruited
+    Mabel brings only the found duckling (`withDuck,lost,lost`, never
+    double-moved); a later-found duckling rejoins right after Mabel; at the
+    grove the lost one stays lost, and found afterwards walks to Mabel's
+    spot and settles; the necklace goes to the close follower, not the far
+    waiting friend. All 5 failed on the old code. Full suite now 42 checks
+    at 900×600 and 375×667 touch, zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

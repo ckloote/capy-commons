@@ -387,6 +387,11 @@ export class Game {
     }
   }
 
+  _mabel() { return this.friends.find((f) => f.cfg.id === 'duck'); }
+  _ducklingSpot(mabel) {
+    return mabel.homeSpot.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2));
+  }
+
   countDucklingsFollowing() {
     return this.ducklings.filter((d) => d.state === 'following').length;
   }
@@ -418,7 +423,10 @@ export class Game {
   // who a necklace would go to: the friend you're talking to, else the nearest bare neck
   _necklaceTarget(playerPos, talking) {
     if (this.necklaces <= 0) return null;
-    if (talking && !talking.cfg.kind && !talking.cr.necklace) return talking;
+    // the friend you're talking to — but only within arm's length: the aura
+    // can make "talking" reach 9 units, and a necklace is handed over, not thrown
+    if (talking && !talking.cfg.kind && !talking.cr.necklace &&
+      talking.cr.group.position.distanceTo(playerPos) < AURA_BASE) return talking;
     let best = null, bestD = AURA_BASE;
     for (const f of this.friends) {
       if (f.cr.necklace) continue;
@@ -431,11 +439,7 @@ export class Game {
   tryAction(playerPos, t = 0) {
     const f = this.nearestActionable(playerPos);
     if (f && this._canSatisfy(f)) {
-      if (f.cfg.want === 'ducklings') {
-        for (const d of this.ducklings) d.state = 'withDuck';
-      } else {
-        delete this.inventory[f.cfg.want];
-      }
+      if (f.cfg.want !== 'ducklings') delete this.inventory[f.cfg.want];
       this._befriend(f);
       this._updateHUD();
       return true;
@@ -520,9 +524,14 @@ export class Game {
     f.icon.material.map = emojiTexture('💛');
     f.icon.material.needsUpdate = true;
     this.followers.push(f);
-    // ducklings slot in right behind their mother
+    // ducklings you've already found slot in right behind their mother;
+    // still-lost ones run to her when you find them (see the duckling loop)
     if (f.cfg.id === 'duck') {
-      for (const d of this.ducklings) this.followers.push(d);
+      for (const d of this.ducklings) {
+        if (d.state === 'lost') continue;
+        d.state = 'withDuck';
+        this.followers.push(d);
+      }
     }
     this.sound.friendJoin(this.followers.filter((x) => x.cfg).length - 1);
     this.particles.burst('💛', f.cr.group.position.clone().add(new THREE.Vector3(0, 1.2, 0)), { count: 10 });
@@ -568,10 +577,25 @@ export class Game {
       if (d.state === 'lost') {
         d.cr.update(dt, t, false);
         if (d.cr.group.position.distanceTo(player.position) < 5) {
-          d.state = 'following';
+          const mabel = this._mabel();
           this.sound.pickup();
           this.particles.burst('🐥', d.cr.group.position.clone().add(new THREE.Vector3(0, 0.6, 0)), { count: 5, size: 0.35 });
-          toast(`A duckling peeps and waddles after you! (${this.countDucklingsFollowing()}/3)`);
+          if (mabel.state === 'waiting') {
+            d.state = 'following';
+            toast(`A duckling peeps and waddles after you! (${this.countDucklingsFollowing()}/3)`);
+          } else if (mabel.state === 'following') {
+            // slot in behind Mabel and any siblings already with her
+            d.state = 'withDuck';
+            let at = this.followers.indexOf(mabel) + 1;
+            while (this.followers[at] && this.followers[at].state === 'withDuck' && !this.followers[at].cfg) at++;
+            this.followers.splice(at, 0, d);
+            toast('A duckling peeps and races back to Mabel! 🐥');
+          } else {
+            // Mabel is already at the grove: the duckling heads there on its own
+            d.state = 'homing';
+            d.homeSpot = this._ducklingSpot(mabel);
+            toast('A duckling peeps and sets off for the grove to find Mabel! 🐥');
+          }
           this._updateHUD();
         }
       } else if (d.state === 'following') {
@@ -656,8 +680,9 @@ export class Game {
           if (i >= 0) this.followers.splice(i, 1);
           if (f.cfg.id === 'duck') {
             for (const d of this.ducklings) {
+              if (d.state !== 'withDuck') continue;   // lost ones stay lost until found
               d.state = 'homing';
-              d.homeSpot = f.homeSpot.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2));
+              d.homeSpot = this._ducklingSpot(f);
               const j = this.followers.indexOf(d);
               if (j >= 0) this.followers.splice(j, 1);
             }
@@ -847,8 +872,7 @@ export class Game {
   _updateAuraRing(dt, t, player) {
     let want = 0;
     if (!this.finaleStarted && !this.wanderingOff) {
-      for (const f of this.friends) {
-        if (f.state !== 'waiting') continue;
+      for (const f of this._waitingAll()) {
         const d = f.cr.group.position.distanceTo(player.position);
         if (d < this.aura + 4) want = Math.max(want, this.calmState === 'calming' ? 0.85 : 0.5);
       }
