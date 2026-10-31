@@ -171,8 +171,30 @@ export function makeCapybara(T, scale = 1) {
     g.add(L); legs.push(L);
   }
 
+  // ride anchors (phase 2c): little friends stack on the head and the back
+  const slots = { head: new THREE.Group(), back: new THREE.Group() };
+  slots.head.position.set(0, 0.27, -0.04);
+  head.add(slots.head);
+  slots.back.position.set(0, 1.08, -0.12);
+  g.add(slots.back);
+
   g.scale.setScalar(scale);
-  return new Creature(g, { legs, bobPart: body, head, baseY: 0, shadowR: 1.0, swimSink: 0.45 });
+  const cr = new Creature(g, { legs, bobPart: body, head, baseY: 0, shadowR: 1.0, swimSink: 0.45 * scale });
+  cr.slots = slots;
+  return cr;
+}
+
+// ---------- Wild capybara cousin: smaller, russet ----------
+export function makeCousin(T) {
+  const cr = makeCapybara(T, 0.72);
+  const tinted = new Set();
+  cr.group.traverse((o) => {
+    if (o.isMesh && o.material.map && !tinted.has(o.material)) {
+      tinted.add(o.material);
+      o.material.color.set(0xffc9a0);
+    }
+  });
+  return cr;
 }
 
 // ---------- Tapir ----------
@@ -347,6 +369,124 @@ export function makeDuckling() {
     g.add(L); legs.push(L);
   }
   return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, speedMul: 2.2, shadowR: 0.25, swimSink: 0.1 });
+}
+
+// ---------- small riders (phase 2c): turtle, frog, songbird ----------
+// each gets `top` — the height the next rider in a stack sits at
+export function makeTurtle(T) {
+  const g = new THREE.Group();
+  const skin = solid(0x8f9e62);
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(T.scales, 0x9a8a50));
+  shell.scale.set(1, 0.62, 1.15);
+  shell.position.y = 0.1; shell.userData.y0 = 0.1;
+  g.add(shell);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.035, 6, 18), solid(0x6a5a32));
+  rim.rotation.x = Math.PI / 2;   // sits at the shell's base; inherits its oval scale
+  shell.add(rim);
+  const head = new THREE.Group();
+  head.position.set(0, 0.14, 0.36);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), skin);
+  skull.scale.set(1, 0.85, 1.2);
+  head.add(skull);
+  for (const s of [-1, 1]) { const e = eye(0.018); e.position.set(s * 0.05, 0.03, 0.06); head.add(e); }
+  g.add(head);
+  const legs = [];
+  for (const [sx, sz] of [[-0.2, 0.18], [0.2, 0.18], [-0.2, -0.18], [0.2, -0.18]]) {
+    const L = leg(skin, 0.05, 0.1);
+    L.position.set(sx, 0.1, sz);
+    g.add(L); legs.push(L);
+  }
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 5), skin);
+  tail.rotation.x = -Math.PI / 2; tail.position.set(0, 0.08, -0.36);
+  g.add(tail);
+  const cr = new Creature(g, { legs, bobPart: shell, head, bobAmp: 0.008, speedMul: 0.7, shadowR: 0.4, swimSink: 0.08 });
+  cr.top = 0.27;
+  return cr;
+}
+
+export function makeFrog() {
+  const g = new THREE.Group();
+  const green = solid(0x6fae4a), belly = solid(0xd8e6a0);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), green);
+  body.scale.set(1.05, 0.72, 1.15);
+  body.position.y = 0.13; body.userData.y0 = 0.13;
+  g.add(body);
+  const tummy = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), belly);
+  tummy.scale.set(0.95, 0.5, 1);
+  tummy.position.set(0, -0.03, 0.03);
+  body.add(tummy);
+  const head = new THREE.Group();
+  head.position.set(0, 0.17, 0.1);
+  for (const s of [-1, 1]) {
+    const bump = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), green);
+    bump.position.set(s * 0.08, 0.06, 0);
+    head.add(bump);
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), solid(0x2a2010));
+    e.position.set(s * 0.085, 0.08, 0.035);
+    head.add(e);
+  }
+  g.add(head);
+  for (const s of [-1, 1]) {   // folded haunches
+    const hk = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), green);
+    hk.scale.set(0.8, 0.6, 1.3);
+    hk.position.set(s * 0.15, 0.07, -0.06);
+    g.add(hk);
+  }
+  const legs = [];
+  for (const sx of [-0.09, 0.09]) {
+    const L = leg(green, 0.025, 0.08);
+    L.position.set(sx, 0.08, 0.13);
+    g.add(L); legs.push(L);
+  }
+  const cr = new Creature(g, { legs, bobPart: body, head, bobAmp: 0.012, speedMul: 1.6, shadowR: 0.28, swimSink: 0.06 });
+  cr.top = 0.24;
+  return cr;
+}
+
+const BIRD_COLORS = [0xf2c14e, 0x5aa0e0, 0xe0604a];
+export function makeSongbird(variant = 0) {
+  const g = new THREE.Group();
+  const col = solid(BIRD_COLORS[variant % BIRD_COLORS.length]);
+  const pale = solid(0xfff1d8);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), col);
+  body.scale.set(0.95, 0.95, 1.2);
+  body.position.y = 0.16; body.userData.y0 = 0.16;
+  g.add(body);
+  const breast = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), pale);
+  breast.position.set(0, -0.02, 0.04);
+  body.add(breast);
+  const head = new THREE.Group();
+  head.position.set(0, 0.28, 0.07);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), col));
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.07, 6), solid(0xe8a23a));
+  beak.rotation.x = Math.PI / 2; beak.position.set(0, -0.005, 0.09);
+  head.add(beak);
+  for (const s of [-1, 1]) { const e = eye(0.016); e.position.set(s * 0.045, 0.02, 0.05); head.add(e); }
+  g.add(head);
+  const wings = [];
+  for (const s of [-1, 1]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.08, 0.19, 0);
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), col);
+    w.scale.set(0.25, 0.6, 1.1);
+    w.position.set(s * 0.02, -0.03, -0.02);
+    pivot.add(w);
+    g.add(pivot); wings.push(pivot);
+  }
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 4), col);
+  tail.rotation.x = -Math.PI / 2 - 0.4; tail.position.set(0, 0.2, -0.15);
+  tail.scale.set(1, 0.35, 1);
+  g.add(tail);
+  const legs = [];
+  for (const sx of [-0.035, 0.035]) {
+    const L = leg(solid(0xc87a3a), 0.012, 0.07);
+    L.position.set(sx, 0.07, 0.01);
+    g.add(L); legs.push(L);
+  }
+  const cr = new Creature(g, { legs, bobPart: body, head, bobAmp: 0.01, speedMul: 2.4, shadowR: 0.2, swimSink: 0.08 });
+  cr.wings = wings;
+  cr.top = 0.33;
+  return cr;
 }
 
 // ---------- Squirrel monkey ----------

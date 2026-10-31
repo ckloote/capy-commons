@@ -146,7 +146,16 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    proximity × zen; gifts become optional accelerators, ducklings quest
    stays). Growing calm aura gates skittish species/areas. Attachment
    slots on capy (head/back/rump) for small critters with spring-sway;
-   new stackables: turtle, frog, songbird, wild capy cousins. ← next phase.
+   new stackables: turtle, frog, songbird, wild capy cousins. ✅
+   Split into three commits: **2a** trust meters + calming costs zen ✅
+   (commit 14); **2b** friendship aura ✅ (commit 15) — radius grows with
+   the parade, skittish species flee a small one (species gating only; map
+   gates stay Phase 4); **2c** attachment slots + stacking riders (turtle, frog,
+   songbird) and wild capy cousins as ground followers ✅ (commit 16).
+   **Phase 2 complete.** Stackables and
+   cousins are bonus: the 8 named friends still complete the Gathering;
+   they count for the pile bonus and the ocelot, cousins also push the
+   dolphin.
 
    **Flower necklaces (issue #4).** The capy picks the flowers already
    scattered around the island (`world.flowers`: stem + petal head, placed
@@ -158,8 +167,8 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    through the parade and finale. Needs the inventory to count items
    (currently one yes/no flag per item). The pick → craft → give → wear
    part doesn't depend on trust and can ship early as a small win.
-   ✅ Early part shipped in commit 12; still to do with Phase 2: the
-   necklace's real trust boost once every animal has a trust meter.
+   ✅ Early part shipped in commit 12; the trust boost (+0.35, zero zen)
+   shipped with Phase 2a in commit 14.
 
    **Zen economy decisions (agreed with user, to be built into this phase):**
    - *Calming costs zen — calm is transferred, not radiated.* While an
@@ -389,6 +398,173 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     full-finale regressions green; zero JS errors.
   - Found, not fixed: on phones the 💤 button overlaps the right edge of
     the prompt card (any long card text; existed since the nap button).
+
+- **Commit 14 (Phase 2a): Trust meters — calm is transferred.**
+  - Old Grim's `companyTime` became `f.trust` (0→1) on every friend. Stand
+    still within `CALM_R` (4.5) of the nearest waiting friend → a calming
+    session: trust fills over `FILL_TIME` 8s (×2 while napping — the
+    generalized Grim nap bonus), with a 💗 trickle and the zen ring
+    breathing pink (`#zen-wrap.giving`).
+  - Each friend has a `tier` → `TIERS` table: mellow (tapir, agouti,
+    caiman) 3 zen/s, no floor; shy (otter, duck, monkey, marmoset) 4.5/s,
+    floor 50; skittish (heron) 6/s, floor 65. The floor gates only
+    *starting* (trust 0) — a friend who has begun to trust you resumes at
+    any zen. The shy floor of 50 is my pick; the roadmap only fixed the
+    heron's 65.
+  - Calm is given, not radiated: during a session your own resting regen
+    (ambient + the nap's +8) is suspended; the spring and friend piles still
+    apply. Otherwise napping beside a mellow friend would net +5/s and make
+    calming free.
+  - Casual rails: moving pauses (never decays — Grim's old 2/s decay is
+    gone); spending never takes zen below `SPEND_FLOOR` 15, with hysteresis
+    (pause at 15, resume at 20) because the pile bonus nudged zen over 15
+    every frame and the session flickered — caught by a test. Only real
+    stressors can reach 0.
+  - Gifts unchanged: species items and the ducklings quest still befriend
+    instantly. Necklace: +0.35 trust, zero zen (plus its +10 zen); if that
+    completes trust they join, with their necklace line first and the join
+    line 3.6s later. New per-friend `calmed` join lines for the trust route.
+  - Prompt card: trust bar for every waiting friend (dimmed while paused);
+    status lines for wary / low / paused / relaxing; one-time toasts for
+    the first session, the first floor refusal and the first 15-zen pause.
+    The E-hint for a gift now adds "(Or just sit with them a while.)"
+  - Fixed the commit-13 phone overlap: under 640px wide the prompt card
+    sits at bottom 186px, above the 💤 button.
+  - Test hooks: `CAPY.freeze()` stops the rAF step, `CAPY.tick(dt, t)`
+    drives a fixed clock, `CAPY.napping` get/set.
+  - Verified headless (900×600, 375×667 touch), 20 checks: tapir joins in
+    8.02s for 24 zen; heron refused at 60 (trust stays 0, card says
+    "zen 65+") and calmed at 70 for ≈44 (the tapir's pile bonus offsets a
+    little); walking away holds trust exactly, resuming below the floor
+    works; zen 20 → bottoms at 15.00, no stress-out, no flicker; necklace
+    completes 0.7 → join, and gives a fresh friend exactly 0.35; mango gift
+    instant; napping Grim joins in 4.02s; phone card clear of 💤; ducklings
+    quest → Mabel; full run 8/8 homed, 8 runes, finale. Zero JS errors.
+  - Not changed: the heron sits ~11 from the ocelot's patrol, so its
+    stalking can drain you mid-calm; the 15 floor doesn't block real
+    stressors. Worth watching in 2b playtests.
+
+- **Commit 15 (Phase 2b): The friendship aura.**
+  - `this.aura = 4.5 + 0.6 × named friends in the parade` (cap 9), computed
+    each frame; it replaces 2a's fixed `CALM_R` as the calming radius (and
+    so the prompt-card range). Necklace giving stays at arm's length
+    (`AURA_BASE`) — handing one over from 9 units away looked silly.
+  - Ring visual: 56 additive soft motes (`THREE.Points`) on a circle around
+    the player, each set to terrain height every frame so it hugs slopes
+    and floats on water; slow spin, gentle shimmer. Fades in only when a
+    waiting friend is within aura+4 (brighter while calming), eases its
+    radius up when the parade grows, hidden at the finale and during a
+    stress-out. One-time toast after your first friend: "Your circle of
+    calm widens…".
+  - Species gate: `auraNeed` in the friend config (heron: 2). `_startles(f)`
+    = needs more named friends than you have *and* you aren't carrying her
+    gift — the fetch route always stays open (a fish holds Hana still).
+    While startled, calming never starts (`calmState 'startled'`), even if
+    you corner her.
+  - Flee: within `FLEE_R` 7 she bolts 6 units in the most "away" of seven
+    directions that stays inside `FLEE_LEASH` 12 of home and shallower than
+    80% of her `swimSink` (new `cr.noSwim` check in `_moveToward`: wade yes,
+    swim off no; cleared on befriend so she swims with the parade). Cornered
+    → she stands ruffled. 💨 puff + one-time toast with the count. She
+    drifts home after 6s once you're past 9 units (or the parade is big
+    enough).
+  - Prompt card: a startled friend within 9 gets a card even outside the
+    aura: "(0/2 friends) Or bring a silver fish 🐟…". The shared lines are
+    species-neutral so 2c's songbirds and cousins can reuse them.
+  - Verified headless (900×600, 375×667 touch), 23 checks over two fresh
+    page loads: the full 2a regression (with the mango gift first so the
+    heron has her 2 friends — she then holds still and is calmed at 70);
+    aura 4.5 → 5.1 → 5.7; ring hidden in the open, shown near a friend,
+    hidden at finale; solo heron flees 5.8 units, never deeper than 0,
+    leashed; startled card at the moment she flees; chasing her for 6s
+    gives 0 trust; she's back home in 15s; a fish holds her still and the
+    gift befriends solo; with 2 friends the tapir calms from 5.3 (outside
+    the base radius); necklace still arm's length. Full run to finale.
+    Zero JS errors.
+
+- **Commit 16 (Phase 2c): Riders and wild cousins.**
+  - New builders in `creatures.js`: `makeTurtle` (scale-textured dome
+    shell + rim, stubby legs), `makeFrog` (squat, eye bumps, folded
+    haunches), `makeSongbird(variant)` (yellow/blue/red, flapping wing
+    pivots in `cr.wings`), and `makeCousin` = `makeCapybara(T, 0.72)` with a
+    russet tint. Each rider has `cr.top`, the height the next rider sits at.
+    `makeCapybara` now exposes `cr.slots.head` (on the head group, so it
+    nods with naps) and `cr.slots.back`, and scales `swimSink` with size.
+  - `KINDS` + `CRITTERS` in `game.js`: 2 turtles (mellow, 3s fill ≈ 9 zen)
+    — one basking beside the hot spring, one on the NW pond rim; 2 frogs at
+    the NW pond edge (shy, 3s); 3 songbirds in the meadow north of spawn
+    (skittish, `auraNeed` 3); a herd of 3 cousins in the southwest marsh
+    (shy, 5s, `auraNeed` 1). Spots found by scanning in the live world for
+    land, no collider within 1.2–1.5, and ≥5 from friends, items and
+    chaos zones. The first turtle was on the big pond's east rim, but that
+    is ~10 from Hana, so standing near her put the turtle inside your aura
+    and its card replaced her startled card. Moved to the spring.
+  - Recruitment reuses the 2a/2b code: `_waitingAll()` (friends + critters)
+    feeds `nearestActionable`, the trust session (with per-kind `fill`), and
+    the startled card; `_updateSkittish` runs unchanged for songbirds and
+    cousins. Critters can't take necklaces and E near one just squeaks.
+  - Riding: `_mountRider` pushes onto a stack (`riders.head` / `.back`, cap
+    4 each, overflow to the other stack) and hops the critter in a 0.55s arc
+    to its spot. Pivots nest: each rider's pivot is a child of the one below,
+    at `below.cr.top`, so a tall stack whips. Sway: player acceleration from
+    the position delta, low-passed (0.12s), teleports ignored, projected
+    into the capy's frame; each pivot springs (k 55, damping 6) toward
+    `−aFwd·0.012` pitch and `aSide·0.012` roll, clamped ±0.45. Riders hop
+    on a squeak, 💤 rises off the stack when you nap, and they bounce through
+    the finale.
+  - Counting (decisions from the plan): cousins are followers with a `cfg`,
+    so `_paradeFriends` (aura, startle gates) and `_friendsInParade` (dolphin
+    pushers) count them with no further change. Riders are added to the
+    ocelot's `procession` and the pile bonus, but not to the aura gate. At
+    the finale, following cousins settle in a ring 12 below the grove.
+    `separate()` treats cousins as solid.
+  - HUD: friend line gains "· N cousins"; riders are one grouped chip
+    (`🐦3 🐢2 🐸2`). On phones (≤640px) the chip row now sits under the zen
+    ring — at the top right it overlapped the friend panel, and below that
+    the toasts covered it.
+  - Verified headless (900×600, 375×667 touch), 37 checks over three fresh
+    page loads: the full 2a/2b suites, plus all 10 critters on land; turtle
+    calmed solo for 9.0 zen → back stack, chip; frog nests on the turtle's
+    pivot at its `top`; songbird startles with 0 parade friends even with
+    riders aboard; cousin flees solo, calmed with 1 friend, joins the parade,
+    aura 5.7, counts for the dolphin, HUD "1 cousin"; songbird calmed with 3
+    → head; all 7 aboard (3 head, 4 back); walking leans the top rider 0.18,
+    stopping wobbles both ways, settles to <1e-6 in 3s; squeak hop; riders
+    alone send the ocelot packing; riders survive a swim, a nap (💤), and a
+    stress-out; finale with 8 homed, a cousin gathered, 7 riders aboard.
+    Zero JS errors.
+  - Test-harness notes: a stress-out triggered *at spawn* resolves the same
+    frame (spawn is its own nearest calm spot), so the test triggers it away
+    from spawn. Instant `_befriend` in tests leaves 💛 icons up until their
+    real-time 2.5s timer, so screenshots show big hearts the game never does.
+
+- **Commit 17: PR #5 review fixes** (three P2 findings from the user's
+  review; each reproduced with a new fixed-clock check *before* fixing).
+  1. *Ducklings when Mabel joins through trust or a necklace.* `_befriend`
+     pushed all three ducklings into the parade whatever their state; only
+     the gift path set `withDuck`. Calm-recruiting Mabel with one duckling
+     found gave a 5-long parade with two lost ducklings in it (they counted
+     for the ocelot), and the found one was moved twice a frame (toward
+     you *and* to its conga slot). Now `_befriend` takes only found
+     ducklings (→ `withDuck`); a duckling found later runs to Mabel and
+     slots in behind her and her siblings, or — if she's already at the
+     grove — walks there on its own and settles beside her. The grove
+     handoff sends only `withDuck` ducklings home. (`_mabel()`,
+     `_ducklingSpot()`.)
+  2. *Necklace range.* `_necklaceTarget` returned the "talking" friend with
+     no distance check, and since 2b "talking" reaches the whole aura: with
+     4 friends, E spent the necklace on Luna 6.5 away instead of Tobi 1
+     away. The talking target now has to be within `AURA_BASE` too.
+  3. *Ring near critters.* `_updateAuraRing` only looked at named friends,
+     so calming a cousin or frog with no named friend nearby showed no ring.
+     It now uses `_waitingAll()` like the calm system.
+  - New Scenario D (5 checks): ring while calming a cousin; trust-recruited
+    Mabel brings only the found duckling (`withDuck,lost,lost`, never
+    double-moved); a later-found duckling rejoins right after Mabel; at the
+    grove the lost one stays lost, and found afterwards walks to Mabel's
+    spot and settles; the necklace goes to the close follower, not the far
+    waiting friend. All 5 failed on the old code. Full suite now 42 checks
+    at 900×600 and 375×667 touch, zero JS errors.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
