@@ -318,6 +318,7 @@ export class Game {
         home: { x, z }, fleeUntil: -99, returnAt: -99,
       });
     });
+    this._cur = { x: 0, z: 0 };   // scratch for currentAt
     this._lastP = null;
     this._vel = new THREE.Vector2();
     this._acc = new THREE.Vector2();
@@ -618,6 +619,13 @@ export class Game {
         target.y = 0;
         this._moveToward(fw, target, dt, t, 1.4, 8.2);
       }
+      // the river carries the parade too, so a drifting capybara doesn't leave it behind
+      const cur = this.world.currentAt(fw.cr.group.position.x, fw.cr.group.position.z, this._cur);
+      if (cur.x || cur.z) {
+        const solid = this.world.collide(fw.cr.group.position.x + cur.x * dt, fw.cr.group.position.z + cur.z * dt,
+          Math.min(fw.cr.shadowR, 0.8) * 0.7);
+        fw.cr.group.position.x = solid.x; fw.cr.group.position.z = solid.z;
+      }
     }
 
     for (const f of this.friends) {
@@ -711,6 +719,13 @@ export class Game {
         toast(isl.arrive, 4800);
         this.sound.pickup();
       }
+    }
+
+    // the river: one toast the first time the current takes you
+    if (this.inCurrent > 1.2 && !this.currentTold) {
+      this.currentTold = true;
+      toast('Whee! The current has you. 🌊 Ride it out to sea, or paddle for the bank.', 5200);
+      this.sound.splash();
     }
 
     // hot spring boost

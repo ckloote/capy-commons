@@ -71,6 +71,8 @@ for (const I of ISLANDS) {
   I.reach = Math.max(I.rx, I.rz) * (1 + (I.shore * 1.75) / I.rm) + 1;   // bbox for a cheap reject
 }
 
+const RIVER = ISLANDS.find((i) => i.biome === 'riverbank');
+
 // ---------- the Rice Paddies layout (pure geometry, shared with game.js) ----------
 // Fields are the 7.5-unit cells of the paddies' local grid that sit wholly in
 // the flooded middle. Most are planted with rice; the rest grow lily pads,
@@ -153,11 +155,35 @@ const BIOME = {
   // a lazy river along the long axis, meandering, open to the sea at both ends
   riverbank(h, lx, lz) {
     const dist = Math.abs(lx - riverCentre(lz));
-    const c = smooth(clamp01(1 - dist / 5));
+    const c = smooth(clamp01((7.5 - dist) / 3.5));   // flat bed ±4, sloping banks out to 7.5
     return h + (-1.3 - h) * c;
   },
 };
 export function riverCentre(lz) { return 4 * Math.sin(lz * 0.12); }
+
+// ---------- the river current (phase 3d) ----------
+// The Riverbank's river flows along its long axis toward +lz (roughly south),
+// out to sea at the south end. Strongest mid-channel, nothing on the banks.
+export const CURRENT_MAX = 2.4;     // units/s; swimming is 4.2, so you can always beat it
+const RIVER_HALF = 5.2;             // the current fades to 0 this far from the centre line
+export function currentAt(x, z, out = { x: 0, z: 0 }) {
+  out.x = 0; out.z = 0;
+  const I = RIVER;
+  if (Math.abs(x - I.x) > I.reach || Math.abs(z - I.z) > I.reach) return out;
+  if (heightAt(x, z) > -0.05) return out;
+  const { lx, lz } = localOf(I, x, z);
+  const end = I.rz + I.shore * 1.5;                       // past the mouths it dies away in the sea
+  if (Math.abs(lz) > end) return out;
+  const k = smooth(clamp01(1 - Math.abs(lx - riverCentre(lz)) / RIVER_HALF)) *
+    smooth(clamp01((end - Math.abs(lz)) / 6));
+  if (k <= 0) return out;
+  // flow direction: along the centre line's tangent (dlx/dlz, 1), rotated into the world
+  const tx = 0.48 * Math.cos(lz * 0.12), n = Math.hypot(tx, 1);
+  const flx = tx / n, flz = 1 / n;
+  out.x = (flx * I.cos - flz * I.sin) * CURRENT_MAX * k;
+  out.z = (flx * I.sin + flz * I.cos) * CURRENT_MAX * k;
+  return out;
+}
 
 // the original single-island height function, unchanged (home invariance)
 function homeHeight(x, z) {
@@ -241,6 +267,10 @@ function splatMaterial(baseMap, altTex, altScale = 1) {
 // how much of the alt texture each biome shows: (x, z, height, local x/z, q, normal.y) → 0..1
 const SPLAT = {
   // mineral crust over the treads and every riser; a few grassy patches on the treads
+  // river stones along the channel and its banks, grass beyond
+  riverbank(x, z, h, lx, lz) {
+    return smooth(clamp01((9.5 - Math.abs(lx - riverCentre(lz))) / 2));
+  },
   // mud on the flooded field floors; the bunds between them and the dry rim stay grassy
   paddies(x, z, h, lx, lz, q) {
     return smooth(clamp01((0.82 - q) / 0.12)) * smooth(clamp01((0.22 - h) / 0.2));
@@ -323,7 +353,7 @@ export function createWorld(scene, T) {
     terraces:  { land: 0xfff0d2, sand: 0xf1dcb4, deep: 0x8c9478, cliff: 0xf6dcc2,     // soft apricot risers
                  alt: 'travertine', altScale: 0.9 },
     paddies:   { land: 0xe4ffc4, sand: 0xb8a26e, deep: 0x7a8456, alt: 'mud', altScale: 1.6 },
-    riverbank: { land: 0xf2ffe0, sand: 0xc9ad78, deep: 0x6f7f5c },
+    riverbank: { land: 0xf2ffe0, sand: 0xc9ad78, deep: 0x6f7f5c, alt: 'riverstones', altScale: 2.4 },
     islet:     { land: 0xf0e6cc, sand: 0xe8c98f, deep: 0x7a8f6a },
   };
   function buildTerrain(owner, cx, cz, size, seg, repeat) {
@@ -937,6 +967,71 @@ export function createWorld(scene, T) {
     }
   }
 
+  // ---------- the Riverbank: a flowing river surface, boulders, drifting leaves ----------
+  {
+    const I = RIVER;
+    const L0 = -(I.rz + I.shore * 1.5), L1 = -L0, SEG = 90, HALF = 7;
+    const toW = (lx, lz) => [I.x + lx * I.cos - lz * I.sin, I.z + lx * I.sin + lz * I.cos];
+    // a ribbon along the centre line, just above the sea plane. Banks hide
+    // its edges (they're above it); alpha fades it out at the sides and mouths.
+    const pos = [], uv = [], col = [], idx = [];
+    for (let i = 0; i <= SEG; i++) {
+      const lz = L0 + (L1 - L0) * (i / SEG), c = riverCentre(lz);
+      const endA = smooth(clamp01((L1 - Math.abs(lz)) / 8));
+      for (const [side, u] of [[-1, 0], [-0.55, 0.22], [0.55, 0.78], [1, 1]]) {
+        const [x, z] = toW(c + side * HALF, lz);
+        pos.push(x, 0.03, z);
+        uv.push(u * 1.6, (lz - L0) / 7);
+        col.push(1, 1, 1, (Math.abs(side) === 1 ? 0 : 0.6) * endA);
+      }
+    }
+    for (let i = 0; i < SEG; i++) {
+      for (let j = 0; j < 3; j++) {
+        const a = i * 4 + j, b = a + 4;
+        idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const riverTex = T.water.clone();
+    riverTex.wrapS = riverTex.wrapT = THREE.RepeatWrapping;
+    riverTex.colorSpace = THREE.SRGBColorSpace;
+    const river = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+      map: riverTex, color: 0xcfe6c4, vertexColors: true, transparent: true, depthWrite: false,
+    }));
+    river.renderOrder = 1;
+    scene.add(river);
+    world.riverTex = riverTex;
+
+    // a few big boulders mid-stream: something to bump into, or rest against
+    for (const [lz, off] of [[-14, 0.4], [3, -0.6], [17, 0.3]]) {
+      const [x, z] = toW(riverCentre(lz) + off, lz);
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.25, 0), stoneMat);
+      rock.position.set(x, -0.35, z);
+      rock.rotation.set(lz, lz * 0.7, 0.3);
+      rock.scale.y = 0.85;
+      scene.add(rock);
+      world.colliders.push({ x, z, r: 1.15 });
+    }
+
+    // leaves riding the current from one mouth to the other
+    const leafMat = new THREE.MeshLambertMaterial({ map: canopyMat.map, color: 0xc8e890, side: THREE.DoubleSide });
+    const leafGeo = new THREE.CircleGeometry(0.22, 7).rotateX(-Math.PI / 2).scale(1, 1, 1.8);
+    const LR = mulberry(4242);
+    world.leaves = [];
+    for (let i = 0; i < 16; i++) {
+      const m = new THREE.Mesh(leafGeo, i % 4 ? leafMat : petalMat);
+      m.userData = { s: LR(), off: (LR() - 0.5) * 3.2, spin: (LR() - 0.5) * 1.5, sp: 0.75 + LR() * 0.4 };
+      scene.add(m);
+      world.leaves.push(m);
+    }
+    world.river = { L0, L1, toW };
+  }
+
   // ---------- neighbour islands: trees, bushes, rocks, reeds ----------
   // Each island has its own rng, so the home layout above (and everything
   // below that still draws from `rng`) is exactly what it always was.
@@ -1047,6 +1142,7 @@ export function createWorld(scene, T) {
     return best;
   };
   world.islandAt = islandAt;
+  world.currentAt = currentAt;
 
   // update hook
   let wt = 0;
@@ -1063,6 +1159,20 @@ export function createWorld(scene, T) {
         f.grow = Math.min(1, f.grow + dt * 1.5);
         const k = f.grow;
         f.g.scale.setScalar(Math.max(0.01, k + 0.35 * Math.sin(k * Math.PI)));   // little overshoot pop
+      }
+    }
+    // the river runs: texture scrolls downstream, leaves ride the current
+    world.riverTex.offset.y = -t * CURRENT_MAX / 7 * 0.8;
+    {
+      const { L0, L1, toW } = world.river, span = L1 - L0;
+      for (const m of world.leaves) {
+        const u = m.userData;
+        const lz = L0 + (((u.s * span + t * CURRENT_MAX * 0.8 * u.sp) % span) + span) % span;
+        const [x, z] = toW(riverCentre(lz) + u.off, lz);
+        m.position.set(x, 0.06 + Math.sin(t * 2 + u.s * 9) * 0.02, z);
+        m.rotation.y = t * u.spin + u.s * 6;
+        // hide while out past the mouths, where the ribbon has faded
+        m.visible = Math.abs(lz) < L1 - 6;
       }
     }
     for (const y of world.yuzu) y.position.y = 0.2 + Math.sin(t * 1.6 + y.userData.phase) * 0.06;

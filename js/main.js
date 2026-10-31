@@ -24,7 +24,7 @@ window.addEventListener('resize', () => {
 // ---------- texture loading ----------
 const NAMES = ['grass', 'path', 'water', 'bark', 'canopy', 'stone', 'petals',
   'fur_capy', 'fur_dark', 'fur_otter', 'fur_ocelot', 'feathers_heron', 'feathers_duck', 'scales',
-  'travertine', 'mud', 'rice.png', 'lilypad.png'];
+  'travertine', 'mud', 'rice.png', 'lilypad.png', 'riverstones'];
 const loader = new THREE.TextureLoader();
 const T = {};
 const texturesReady = Promise.all(NAMES.map((n) => new Promise((res, rej) => {
@@ -79,6 +79,7 @@ function buildGame() {
 
 // ---------- player + camera ----------
 const camTarget = new THREE.Vector3();
+const curTmp = { x: 0, z: 0 };
 const camPos = new THREE.Vector3();
 
 function step(dt, t) {
@@ -160,6 +161,16 @@ function step(dt, t) {
     while (diff < -Math.PI) diff += Math.PI * 2;
     g.rotation.y += diff * Math.min(1, dt * 10);
     moving = true;
+  }
+
+  // the river current carries you downstream (swimming against it still wins)
+  {
+    const cur = world.currentAt(g.position.x, g.position.z, curTmp);
+    if (cur.x || cur.z) {
+      const nx = g.position.x + cur.x * dt, nz = g.position.z + cur.z * dt;
+      if (Math.hypot(nx, nz) < SEA_R) { g.position.x = nx; g.position.z = nz; }
+      game.inCurrent = Math.hypot(cur.x, cur.z);
+    } else game.inCurrent = 0;
   }
 
   // dynamic bodies are solid too: no phasing through the ocelot or friends

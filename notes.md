@@ -200,7 +200,7 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    horizon. Watch swim length: the ocean is ~6 deep and featureless.
    Split into four commits: **3a** archipelago engine ✅ (commit 18);
    **3b** terraces (pools, mineral texture) ✅ (commit 19); **3c** paddies (rice, mud,
-   lily pads, critters) ✅ (commit 20); **3d** riverbank + current. Agreed for this phase:
+   lily pads, critters) ✅ (commit 20); **3d** riverbank + current ✅ (commit 21). **Phase 3 complete.** Agreed for this phase:
    the new islands hold *optional* content (the 8 friends and the Gathering
    don't change); the home spring stays; new textures come from Gemini's
    `gemini-nano-banana-2.1` (needs `GEMINI_API_KEY` in the environment).
@@ -692,6 +692,43 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     duckling; all 10 riders aboard (5 + 5); a paddy cousin calmed with one
     friend in the parade joins it; full regression run to the finale; zero
     JS errors.
+
+- **Commit 21 (Phase 3d): The Riverbank and its current.**
+  - Channel reshaped: 3a's V (`1 − dist/5`) only dipped below sea level in a
+    ~2-unit strip, so it read as a ditch. Now `smooth((7.5 − dist)/3.5)`: a
+    flat bed at −1.3 for ±4 of the meandering centre line, sloping banks out
+    to 7.5. Water is ~9 wide.
+  - Splat: `riverstones` (tile ×2.4) within 7.5 of the centre line, fading
+    to grass by 9.5. At ×1.4 the pebbles read as boulders.
+  - River surface: a ribbon mesh (4 verts across × 90 segments) following
+    `riverCentre` from mouth to mouth at y 0.03, `water` texture scrolled
+    downstream at the current's speed, RGBA vertex colours fade it out at
+    the sides and both mouths (the banks hide its edges anyway). Tinted like
+    the sea, alpha 0.6.
+  - `currentAt(x, z)` (exported, also `world.currentAt`): zero unless in
+    water on the Riverbank; flows along the centre line's tangent toward
+    +lz (south, out to sea), `CURRENT_MAX` 2.4 mid-channel, fading to 0 at
+    5.2 from the centre and over the last 6 units past each mouth. Swimming
+    is 4.2, so upstream nets ~1.8 and you can always get out.
+  - The player (main.js, after input movement and before the collide /
+    separate pass) and every follower (game.js, after its trail step, with
+    a collide) are moved by it. Without the follower half a floating
+    capybara left the parade behind. One-time toast the first time it
+    carries you at > 1.2.
+  - 3 mid-stream boulders (colliders r 1.15): the current carries you onto
+    one and you slide around it (a round collider can't pin you).
+  - 16 leaves (every 4th a petal) ride the river mouth to mouth, spinning,
+    hidden past the faded mouths.
+  - Verified headless (900×600, 375×667 touch): current 2.4 mid-channel
+    heading south, 0 on the bank, 0 everywhere on home (1.5 grid); idle in
+    the river drifts 7 units in 3 s and toasts; holding W upstream still
+    gains 3.4 in 2 s; drifting onto a boulder keeps ≥ r + 0.55 and slides
+    past; a 3-friend parade floating 6 s (11 units of drift) stays within
+    7.6; the 3b and 3c suites and the full regression run to the finale
+    still pass; zero JS errors.
+  - Test-harness note: teleporting the player 90 units from the parade and
+    checking distances a few seconds later measures the parade's swim over,
+    not the current; the test now puts the friends on the bank first.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

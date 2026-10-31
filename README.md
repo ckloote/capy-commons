@@ -63,8 +63,11 @@ together. It doesn't forget a favour.
 **There's more out there.** Look out from the beaches: the Commons isn't
 alone. Steaming stone terraces lie to the northeast, rice paddies to the
 south, and a river island to the west, with a couple of palm islets in
-between. Your whole parade swims with you. Nothing out there is needed
-for the Gathering; they're places to explore.
+between. Your whole parade swims with you. Soak in the terraces' milky
+mineral pools, wade the paddies where frogs sit on lily pads, and let the
+river's current carry you down to the sea. Nothing out there is needed for
+the Gathering; they're places to explore, with a few more critters to
+befriend.
 
 Capybaras can swim. The hot spring in the west does something nice.
 Squeak near your parade and see what happens.
