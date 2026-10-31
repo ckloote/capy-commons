@@ -146,12 +146,13 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    proximity × zen; gifts become optional accelerators, ducklings quest
    stays). Growing calm aura gates skittish species/areas. Attachment
    slots on capy (head/back/rump) for small critters with spring-sway;
-   new stackables: turtle, frog, songbird, wild capy cousins. ← in progress.
+   new stackables: turtle, frog, songbird, wild capy cousins. ✅
    Split into three commits: **2a** trust meters + calming costs zen ✅
    (commit 14); **2b** friendship aura ✅ (commit 15) — radius grows with
    the parade, skittish species flee a small one (species gating only; map
    gates stay Phase 4); **2c** attachment slots + stacking riders (turtle, frog,
-   songbird) and wild capy cousins as ground followers. Stackables and
+   songbird) and wild capy cousins as ground followers ✅ (commit 16).
+   **Phase 2 complete.** Stackables and
    cousins are bonus: the 8 named friends still complete the Gathering;
    they count for the pile bonus and the ocelot, cousins also push the
    dolphin.
@@ -480,6 +481,62 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     gift befriends solo; with 2 friends the tapir calms from 5.3 (outside
     the base radius); necklace still arm's length. Full run to finale.
     Zero JS errors.
+
+- **Commit 16 (Phase 2c): Riders and wild cousins.**
+  - New builders in `creatures.js`: `makeTurtle` (scale-textured dome
+    shell + rim, stubby legs), `makeFrog` (squat, eye bumps, folded
+    haunches), `makeSongbird(variant)` (yellow/blue/red, flapping wing
+    pivots in `cr.wings`), and `makeCousin` = `makeCapybara(T, 0.72)` with a
+    russet tint. Each rider has `cr.top`, the height the next rider sits at.
+    `makeCapybara` now exposes `cr.slots.head` (on the head group, so it
+    nods with naps) and `cr.slots.back`, and scales `swimSink` with size.
+  - `KINDS` + `CRITTERS` in `game.js`: 2 turtles (mellow, 3s fill ≈ 9 zen)
+    — one basking beside the hot spring, one on the NW pond rim; 2 frogs at
+    the NW pond edge (shy, 3s); 3 songbirds in the meadow north of spawn
+    (skittish, `auraNeed` 3); a herd of 3 cousins in the southwest marsh
+    (shy, 5s, `auraNeed` 1). Spots found by scanning in the live world for
+    land, no collider within 1.2–1.5, and ≥5 from friends, items and
+    chaos zones. The first turtle was on the big pond's east rim, but that
+    is ~10 from Hana, so standing near her put the turtle inside your aura
+    and its card replaced her startled card. Moved to the spring.
+  - Recruitment reuses the 2a/2b code: `_waitingAll()` (friends + critters)
+    feeds `nearestActionable`, the trust session (with per-kind `fill`), and
+    the startled card; `_updateSkittish` runs unchanged for songbirds and
+    cousins. Critters can't take necklaces and E near one just squeaks.
+  - Riding: `_mountRider` pushes onto a stack (`riders.head` / `.back`, cap
+    4 each, overflow to the other stack) and hops the critter in a 0.55s arc
+    to its spot. Pivots nest: each rider's pivot is a child of the one below,
+    at `below.cr.top`, so a tall stack whips. Sway: player acceleration from
+    the position delta, low-passed (0.12s), teleports ignored, projected
+    into the capy's frame; each pivot springs (k 55, damping 6) toward
+    `−aFwd·0.012` pitch and `aSide·0.012` roll, clamped ±0.45. Riders hop
+    on a squeak, 💤 rises off the stack when you nap, and they bounce through
+    the finale.
+  - Counting (decisions from the plan): cousins are followers with a `cfg`,
+    so `_paradeFriends` (aura, startle gates) and `_friendsInParade` (dolphin
+    pushers) count them with no further change. Riders are added to the
+    ocelot's `procession` and the pile bonus, but not to the aura gate. At
+    the finale, following cousins settle in a ring 12 below the grove.
+    `separate()` treats cousins as solid.
+  - HUD: friend line gains "· N cousins"; riders are one grouped chip
+    (`🐦3 🐢2 🐸2`). On phones (≤640px) the chip row now sits under the zen
+    ring — at the top right it overlapped the friend panel, and below that
+    the toasts covered it.
+  - Verified headless (900×600, 375×667 touch), 37 checks over three fresh
+    page loads: the full 2a/2b suites, plus all 10 critters on land; turtle
+    calmed solo for 9.0 zen → back stack, chip; frog nests on the turtle's
+    pivot at its `top`; songbird startles with 0 parade friends even with
+    riders aboard; cousin flees solo, calmed with 1 friend, joins the parade,
+    aura 5.7, counts for the dolphin, HUD "1 cousin"; songbird calmed with 3
+    → head; all 7 aboard (3 head, 4 back); walking leans the top rider 0.18,
+    stopping wobbles both ways, settles to <1e-6 in 3s; squeak hop; riders
+    alone send the ocelot packing; riders survive a swim, a nap (💤), and a
+    stress-out; finale with 8 homed, a cousin gathered, 7 riders aboard.
+    Zero JS errors.
+  - Test-harness notes: a stress-out triggered *at spawn* resolves the same
+    frame (spawn is its own nearest calm spot), so the test triggers it away
+    from spawn. Instant `_befriend` in tests leaves 💛 icons up until their
+    real-time 2.5s timer, so screenshots show big hearts the game never does.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

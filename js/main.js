@@ -57,6 +57,7 @@ function buildGame() {
   player = makeCapybara(T);
   player.group.position.set(0, heightAt(0, 0), 4);
   scene.add(player.group);
+  game.player = player;   // riders need the capybara's head/back anchors
 
   input = new Input(canvas);
   // debug/test hooks

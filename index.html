@@ -201,6 +201,11 @@
   /* narrow screens: lift the card clear of the 💤 button's column */
   @media (max-width: 640px) {
     #prompt-card { bottom: calc(env(safe-area-inset-bottom, 0px) + 186px); }
+    /* chips move under the zen ring: clear of the friend panel and toasts */
+    #inv {
+      top: calc(env(safe-area-inset-top, 0px) + 146px); left: 12px; right: auto;
+      justify-content: flex-start; max-width: 46vw;
+    }
   }
 
   #toast {

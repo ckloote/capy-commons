@@ -44,6 +44,14 @@ your parade. Hana the heron is too skittish to let a lone capybara anywhere
 near her — come back with a couple of friends, or with the one thing she's
 hoping for.
 
+**Little riders and wild cousins:** turtles, frogs and songbirds can be
+calmed too — quickly, and for a little zen — and then they ride on you:
+songbirds perch on your head, turtles and frogs stack up on your back and
+sway as you walk. A herd of shy wild capybara cousins lives in the
+southwest marsh; bring a friend along and they'll join your parade. None
+of them are needed for the Gathering, but they all count toward your
+parade (the ocelot certainly notices).
+
 **Flower necklaces:** walk through the meadow flowers to pick them — three
 make a necklace 📿. Walk up to any friend and press E / 🐾 to give it; they
 wear it for the rest of the game, and it earns a big chunk of trust for free. Picked flowers grow back.
