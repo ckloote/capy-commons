@@ -49,6 +49,21 @@ class Particles {
   }
 }
 
+// ---------- friendship aura ring: a circle of soft motes that hugs the ground ----------
+const AURA_MOTES = 56;
+function auraMoteTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(16, 16, 1, 16, 16, 15);
+  g.addColorStop(0, 'rgba(255,248,220,1)');
+  g.addColorStop(0.4, 'rgba(255,214,150,0.55)');
+  g.addColorStop(1, 'rgba(255,200,140,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(c);
+}
+
 // ---------- swimming ripples ----------
 const rippleGeo = new THREE.RingGeometry(0.42, 0.56, 24);
 
@@ -59,7 +74,7 @@ const FRIENDS = [
     thanks: 'Tobi tucks the flower behind his ear. He lumbers happily into line!',
     calmed: 'Tobi lets out a long, contented sigh and lumbers into line beside you.',
     necklace: 'Tobi lowers his big head so you can reach. He wears the necklace with enormous dignity.' },
-  { id: 'heron', tier: 'skittish', name: 'Hana the Heron', emoji: '🐟', want: 'fish', space: 2.1,
+  { id: 'heron', tier: 'skittish', auraNeed: 2, name: 'Hana the Heron', emoji: '🐟', want: 'fish', space: 2.1,
     pos: [31, 6], ask: 'Hana stands perfectly still. "A silver fish glints in the pond shallows. My old wings miss the dive…"',
     thanks: 'Hana swallows the fish in one elegant gulp. She strides after you on stilt legs!',
     calmed: 'Hana\'s feathers settle. She lowers her head, just once — and steps after you on stilt legs.',
@@ -120,7 +135,12 @@ const TIERS = {
   skittish: { drain: 6, floor: 65 },   // ≈50 zen
 };
 const FILL_TIME = 8;        // seconds of shared calm to full trust
-const CALM_R = 4.5;         // how close you sit (the friendship aura grows this in 2b)
+// the friendship aura (phase 2b): your circle of calm. It's how close you
+// need to sit, and it widens with every friend walking with you. Skittish
+// species (cfg.auraNeed) won't let a small parade near them at all.
+const AURA_BASE = 4.5, AURA_PER_FRIEND = 0.6, AURA_MAX = 9;
+const FLEE_R = 7;           // a skittish animal bolts when an under-sized parade comes this close
+const FLEE_LEASH = 12;      // …but never strays further than this from home
 const SPEND_FLOOR = 15;     // recruitment never spends zen below this
 const NECKLACE_TRUST = 0.35;
 const shortName = (cfg) => cfg.name.split(' the ')[0];
@@ -168,6 +188,8 @@ export class Game {
     this.calming = null;         // the friend you're sharing calm with
     this.calmState = null;       // 'calming' | 'wary' | 'low' | 'idle' for the prompt card
     this.calmDrain = 0;          // zen/s being given away this frame
+    this.aura = AURA_BASE;       // calm radius; grows with the parade
+    this.auraShown = AURA_BASE;  // eased radius for the ring visual
     this.trail = [];          // {x,z,d}
     this.trailD = 0;
     this.T = T;
@@ -184,9 +206,10 @@ export class Game {
       icon.scale.setScalar(0.8);
       icon.position.set(0, this._iconH(cfg.id), 0);
       cr.group.add(icon);
+      cr.noSwim = !!cfg.auraNeed;   // a startled heron wades, but won't bolt out to sea
       this.friends.push({
         cfg, cr, icon, state: 'waiting', space: cfg.space,
-        trust: 0, runeIndex: -1, homeSpot: null, wanderT: Math.random() * 5,
+        trust: 0, runeIndex: -1, home: { x, z }, fleeUntil: -99, returnAt: -99, homeSpot: null, wanderT: Math.random() * 5,
       });
     }
 
@@ -245,6 +268,19 @@ export class Game {
         noticed: false, nagAt: -99, heaveTold: false,
         angle: 0, leapAt: 6, leapT: -1, rippleT: 0, towTold: false, side: 1,
       };
+    }
+    // the aura ring
+    {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(AURA_MOTES * 3), 3));
+      this.auraRing = new THREE.Points(geo, new THREE.PointsMaterial({
+        map: auraMoteTexture(), size: 0.42, transparent: true, opacity: 0, depthWrite: false,
+        blending: THREE.AdditiveBlending, color: 0xffe2a8,
+      }));
+      this.auraRing.frustumCulled = false;
+      this.auraRing.visible = false;
+      this.auraOpacity = 0;
+      scene.add(this.auraRing);
     }
     this.dolphinTow = false;      // read by main: swimming beside the dolphin is faster
     this.playerSwimming = false;  // set by main each frame
@@ -309,7 +345,7 @@ export class Game {
 
   // ----- interaction -----
   nearestActionable(playerPos) {
-    let best = null, bestD = CALM_R;
+    let best = null, bestD = this.aura;
     for (const f of this.friends) {
       if (f.state !== 'waiting') continue;
       const d = f.cr.group.position.distanceTo(playerPos);
@@ -329,7 +365,7 @@ export class Game {
   _necklaceTarget(playerPos, talking) {
     if (this.necklaces <= 0) return null;
     if (talking && !talking.cr.necklace) return talking;
-    let best = null, bestD = CALM_R;
+    let best = null, bestD = AURA_BASE;
     for (const f of this.friends) {
       if (f.cr.necklace) continue;
       const d = f.cr.group.position.distanceTo(playerPos);
@@ -412,9 +448,20 @@ export class Game {
     this._updateHUD();
   }
 
+  _paradeFriends() {
+    return this.followers.filter((f) => f.cfg).length;
+  }
+
+  // skittish species won't let a small parade near — unless you're carrying
+  // exactly what they're hoping for (the fetch route always stays open)
+  _startles(f) {
+    return !!f.cfg.auraNeed && this._paradeFriends() < f.cfg.auraNeed && !this._canSatisfy(f);
+  }
+
   _befriend(f, { line, quiet = false } = {}) {
     f.state = 'following';
     f.trust = 1;
+    f.cr.noSwim = false;
     if (this.calming === f) this.calming = null;
     f.icon.material.map = emojiTexture('💛');
     f.icon.material.needsUpdate = true;
@@ -426,6 +473,10 @@ export class Game {
     this.sound.friendJoin(this.followers.filter((x) => x.cfg).length - 1);
     this.particles.burst('💛', f.cr.group.position.clone().add(new THREE.Vector3(0, 1.2, 0)), { count: 10 });
     if (!quiet) toast(line || f.cfg.thanks, 4200);
+    if (!this.auraTold) {
+      this.auraTold = true;
+      setTimeout(() => toast('Your circle of calm widens 💛 Every friend beside you makes it bigger — and shy animals notice.', 5200), 4600);
+    }
     this._updateHUD();
     setTimeout(() => { f.icon.visible = false; }, 2500);
   }
@@ -489,6 +540,7 @@ export class Game {
     for (const f of this.friends) {
       const d = f.cr.group.position.distanceTo(player.position);
       if (f.state === 'waiting') {
+        if (this._updateSkittish(f, d, dt, t, player)) continue;
         f.cr.update(dt, t, false);
         // idle turn
         f.wanderT -= dt;
@@ -531,7 +583,9 @@ export class Game {
       }
     }
 
+    this.aura = Math.min(AURA_MAX, AURA_BASE + AURA_PER_FRIEND * this._paradeFriends());
     this._updateCalm(dt, t, player, playerMoving);
+    this._updateAuraRing(dt, t, player);
 
     // grove delivery
     const groveD = Math.hypot(player.position.x - GROVE.x, player.position.z - GROVE.z);
@@ -588,6 +642,73 @@ export class Game {
     this._updatePrompt(player.position);
   }
 
+  // ----- the aura ring: shows only when it matters (a waiting friend nearby) -----
+  _updateAuraRing(dt, t, player) {
+    let want = 0;
+    if (!this.finaleStarted && !this.wanderingOff) {
+      for (const f of this.friends) {
+        if (f.state !== 'waiting') continue;
+        const d = f.cr.group.position.distanceTo(player.position);
+        if (d < this.aura + 4) want = Math.max(want, this.calmState === 'calming' ? 0.85 : 0.5);
+      }
+    }
+    this.auraOpacity += (want - this.auraOpacity) * Math.min(1, dt * 3);
+    this.auraShown += (this.aura - this.auraShown) * Math.min(1, dt * 1.5);   // grows gently
+    const ring = this.auraRing;
+    ring.visible = this.auraOpacity > 0.01;
+    if (!ring.visible) return;
+    ring.material.opacity = this.auraOpacity * (0.75 + 0.25 * Math.sin(t * 2.4));
+    const pos = ring.geometry.attributes.position;
+    const px = player.position.x, pz = player.position.z, spin = t * 0.12;
+    for (let i = 0; i < AURA_MOTES; i++) {
+      const a = (i / AURA_MOTES) * Math.PI * 2 + spin;
+      const r = this.auraShown * (1 + Math.sin(t * 1.7 + i * 1.3) * 0.015);
+      const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
+      pos.setXYZ(i, x, Math.max(heightAt(x, z), 0) + 0.12 + Math.sin(t * 2 + i) * 0.04, z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // ----- skittish friends: bolt from a small parade, drift back home -----
+  // returns true while it's handling the friend's movement this frame
+  _updateSkittish(f, d, dt, t, player) {
+    if (!f.cfg.auraNeed) return false;
+    const g = f.cr.group;
+    if (d < FLEE_R && this._startles(f) && t >= f.fleeUntil && !this.finaleStarted) {
+      // pick the most "away" direction that stays near home and out of the sea
+      const ax = g.position.x - player.position.x, az = g.position.z - player.position.z;
+      const base = Math.atan2(ax, az);
+      let best = null;
+      for (const off of [0, 0.7, -0.7, 1.4, -1.4, 2.1, -2.1]) {
+        const a = base + off;
+        const tx = g.position.x + Math.sin(a) * 6, tz = g.position.z + Math.cos(a) * 6;
+        if (Math.hypot(tx - f.home.x, tz - f.home.z) > FLEE_LEASH) continue;
+        if (-heightAt(tx, tz) >= f.cr.swimSink * 0.8) continue;
+        best = { x: tx, z: tz }; break;
+      }
+      f.fleeTo = best;   // null = cornered: she just stands there, ruffled
+      f.fleeUntil = t + 2.2;
+      f.returnAt = t + 6;
+      this.particles.burst('💨', g.position.clone().add(new THREE.Vector3(0, 1, 0)), { count: 3, size: 0.4 });
+      if (!this.fleeTold) {
+        this.fleeTold = true;
+        this.sound.denied();
+        toast(`${shortName(f.cfg)} startles and hurries off! Only a bigger parade will put them at ease. (${this._paradeFriends()}/${f.cfg.auraNeed} friends)`, 5000);
+      }
+    }
+    if (t < f.fleeUntil) {
+      if (f.fleeTo) this._moveToward(f, f.fleeTo, dt, t, 2.5, 6.5);
+      else f.cr.update(dt, t, false);
+      return true;
+    }
+    const homeD = Math.hypot(g.position.x - f.home.x, g.position.z - f.home.z);
+    if (homeD > 0.6 && t > f.returnAt && (d > FLEE_R + 2 || !this._startles(f))) {
+      this._moveToward(f, { x: f.home.x, z: f.home.z }, dt, t, 0.8, 2);
+      return true;
+    }
+    return false;
+  }
+
   // ----- trust: sit still near a waiting friend and share your calm -----
   _updateCalm(dt, t, player, moving) {
     this.calmDrain = 0;
@@ -596,6 +717,12 @@ export class Game {
     if (!f) { this.calming = null; return; }
     const tier = TIERS[f.cfg.tier];
     const who = shortName(f.cfg);
+    if (this._startles(f)) {
+      // too small a parade: no amount of sitting still will do it
+      this.calming = null;
+      this.calmState = 'startled';
+      return;
+    }
     if (moving) {
       // walking away (or fidgeting) pauses a session; trust is never lost
       this.calming = null;
@@ -958,6 +1085,9 @@ export class Game {
       if (fw.landOnly && heightAt(nx, nz) < 0.08) {
         nx = g.position.x; nz = g.position.z;   // refuse to step into water
       }
+      if (fw.cr.noSwim && -heightAt(nx, nz) >= fw.cr.swimSink * 0.8) {
+        nx = g.position.x; nz = g.position.z;   // wade, yes; swim off, no
+      }
       // stuck watchdog: intent to move but no progress → wriggle free
       const stepped = Math.hypot(nx - g.position.x, nz - g.position.z);
       if (dist > 1.4 && !fw.landOnly) {
@@ -1022,6 +1152,15 @@ export class Game {
     const f = this.nearestActionable(playerPos);
     const giveTo = f && this._canSatisfy(f) ? null : this._necklaceTarget(playerPos, f);
     if (!f && !giveTo) {
+      const shy = this.friends.find((x) => x.state === 'waiting' && this._startles(x) &&
+        x.cr.group.position.distanceTo(playerPos) < FLEE_R + 2);
+      if (shy) {
+        card.classList.add('show');
+        $('prompt-name').textContent = shy.cfg.name;
+        $('prompt-line').textContent = this._startledLine(shy);
+        $('prompt-progress').style.display = 'none';
+        return;
+      }
       const D = this.dolphin;
       if (D.state === 'stranded' && D.cr.group.position.distanceTo(playerPos) < 6) {
         card.classList.add('show');
@@ -1046,7 +1185,9 @@ export class Game {
     $('prompt-name').textContent = f.cfg.name;
     const who = shortName(f.cfg);
     let line = f.cfg.ask;
-    if (this.calmState === 'wary') {
+    if (this.calmState === 'startled') {
+      line = this._startledLine(f);
+    } else if (this.calmState === 'wary') {
       line = `${who} is too wary to settle — come back calmer (zen ${TIERS[f.cfg.tier].floor}+). 🌿`;
     } else if (this.calmState === 'low') {
       line = `You're running low on calm… rest a moment. ${who} will wait.`;
@@ -1059,6 +1200,13 @@ export class Game {
     bar.style.display = 'block';
     bar.classList.toggle('paused', this.calmState !== 'calming');
     bar.firstElementChild.style.width = Math.min(100, f.trust * 100).toFixed(1) + '%';
+  }
+
+  _startledLine(f) {
+    const item = ITEMS.find((it) => it.id === f.cfg.want);
+    const hint = item ? ` Or bring ${item.name} ${item.emoji} — that would hold them still.` : '';
+    return `${shortName(f.cfg)} startles — only a bigger parade will put them at ease. ` +
+      `(${this._paradeFriends()}/${f.cfg.auraNeed} friends)${hint}`;
   }
 
   _updateHUD() {

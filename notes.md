@@ -148,9 +148,9 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    slots on capy (head/back/rump) for small critters with spring-sway;
    new stackables: turtle, frog, songbird, wild capy cousins. ← in progress.
    Split into three commits: **2a** trust meters + calming costs zen ✅
-   (commit 14); **2b** friendship aura — radius grows with the parade,
-   skittish species flee a small one (species gating only; map gates stay
-   Phase 4); **2c** attachment slots + stacking riders (turtle, frog,
+   (commit 14); **2b** friendship aura ✅ (commit 15) — radius grows with
+   the parade, skittish species flee a small one (species gating only; map
+   gates stay Phase 4); **2c** attachment slots + stacking riders (turtle, frog,
    songbird) and wild capy cousins as ground followers. Stackables and
    cousins are bonus: the 8 named friends still complete the Gathering;
    they count for the pile bonus and the ocelot, cousins also push the
@@ -442,6 +442,44 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
   - Not changed: the heron sits ~11 from the ocelot's patrol, so its
     stalking can drain you mid-calm; the 15 floor doesn't block real
     stressors. Worth watching in 2b playtests.
+
+- **Commit 15 (Phase 2b): The friendship aura.**
+  - `this.aura = 4.5 + 0.6 × named friends in the parade` (cap 9), computed
+    each frame; it replaces 2a's fixed `CALM_R` as the calming radius (and
+    so the prompt-card range). Necklace giving stays at arm's length
+    (`AURA_BASE`) — handing one over from 9 units away looked silly.
+  - Ring visual: 56 additive soft motes (`THREE.Points`) on a circle around
+    the player, each set to terrain height every frame so it hugs slopes
+    and floats on water; slow spin, gentle shimmer. Fades in only when a
+    waiting friend is within aura+4 (brighter while calming), eases its
+    radius up when the parade grows, hidden at the finale and during a
+    stress-out. One-time toast after your first friend: "Your circle of
+    calm widens…".
+  - Species gate: `auraNeed` in the friend config (heron: 2). `_startles(f)`
+    = needs more named friends than you have *and* you aren't carrying her
+    gift — the fetch route always stays open (a fish holds Hana still).
+    While startled, calming never starts (`calmState 'startled'`), even if
+    you corner her.
+  - Flee: within `FLEE_R` 7 she bolts 6 units in the most "away" of seven
+    directions that stays inside `FLEE_LEASH` 12 of home and shallower than
+    80% of her `swimSink` (new `cr.noSwim` check in `_moveToward`: wade yes,
+    swim off no; cleared on befriend so she swims with the parade). Cornered
+    → she stands ruffled. 💨 puff + one-time toast with the count. She
+    drifts home after 6s once you're past 9 units (or the parade is big
+    enough).
+  - Prompt card: a startled friend within 9 gets a card even outside the
+    aura: "(0/2 friends) Or bring a silver fish 🐟…". The shared lines are
+    species-neutral so 2c's songbirds and cousins can reuse them.
+  - Verified headless (900×600, 375×667 touch), 23 checks over two fresh
+    page loads: the full 2a regression (with the mango gift first so the
+    heron has her 2 friends — she then holds still and is calmed at 70);
+    aura 4.5 → 5.1 → 5.7; ring hidden in the open, shown near a friend,
+    hidden at finale; solo heron flees 5.8 units, never deeper than 0,
+    leashed; startled card at the moment she flees; chasing her for 6s
+    gives 0 trust; she's back home in 15s; a fish holds her still and the
+    gift befriends solo; with 2 friends the tapir calms from 5.3 (outside
+    the base radius); necklace still arm's length. Full run to finale.
+    Zero JS errors.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient

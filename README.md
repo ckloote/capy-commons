@@ -38,6 +38,12 @@ properly calm. Walk away and their trust waits for you; it never resets.
 Sharing calm can't take you below a small reserve, so being friendly never
 makes you stress out.
 
+**Your circle of calm** (the ring of golden motes that appears near a
+friend) is how close you need to sit, and it widens with every friend in
+your parade. Hana the heron is too skittish to let a lone capybara anywhere
+near her — come back with a couple of friends, or with the one thing she's
+hoping for.
+
 **Flower necklaces:** walk through the meadow flowers to pick them — three
 make a necklace 📿. Walk up to any friend and press E / 🐾 to give it; they
 wear it for the rest of the game, and it earns a big chunk of trust for free. Picked flowers grow back.
