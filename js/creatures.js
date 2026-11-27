@@ -26,6 +26,7 @@ export class Creature {
     this.legs = opts.legs || [];
     this.bobPart = opts.bobPart || null;   // body that bobs
     this.bobAmp = opts.bobAmp ?? 0.03;
+    this.walkBob = opts.walkBob ?? 0.05;   // body lift per step; keep below how deep the hips sit
     this.baseY = opts.baseY ?? 0;          // group y offset above ground
     this.tail = opts.tail || null;
     this.head = opts.head || null;
@@ -68,7 +69,7 @@ export class Creature {
     if (this.bobPart) {
       this.bobPart.position.y = this.bobPart.userData.y0 +
         Math.sin(t * 2 + this.phase) * this.bobAmp * (1 - m) +
-        Math.abs(Math.sin(w)) * 0.05 * m;
+        Math.abs(Math.sin(w)) * this.walkBob * m;
     }
     if (this.tail) this.tail.rotation.y = Math.sin(t * 3 + this.phase) * 0.3;
     if (this.head) this.head.rotation.x = Math.sin(t * 0.7 + this.phase) * 0.06;
@@ -343,7 +344,7 @@ export function makeDuck(T) {
     L.position.set(sx, 0.2, 0.05);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, speedMul: 1.4, shadowR: 0.5, swimSink: 0.22,
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.02, walkBob: 0.025, speedMul: 1.4, shadowR: 0.5, swimSink: 0.22,
     neck: { y: 0.58, z: 0.25, r: 0.14, tilt: 0.3 } });
 }
 
@@ -370,7 +371,7 @@ export function makeDuckling() {
     L.position.set(sx, 0.09, 0.02);
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, speedMul: 2.2, shadowR: 0.25, swimSink: 0.1 });
+  return new Creature(g, { legs, bobPart: body, head, bobAmp: 0.015, walkBob: 0.015, speedMul: 2.2, shadowR: 0.25, swimSink: 0.1 });
 }
 
 // ---------- small riders (phase 2c): turtle, frog, songbird ----------
@@ -436,11 +437,11 @@ export function makeFrog() {
   }
   const legs = [];
   for (const sx of [-0.09, 0.09]) {
-    const L = leg(green, 0.025, 0.08);
-    L.position.set(sx, 0.08, 0.13);
+    const L = leg(green, 0.025, 0.11);   // hips well inside the belly
+    L.position.set(sx, 0.11, 0.13);
     g.add(L); legs.push(L);
   }
-  const cr = new Creature(g, { legs, bobPart: body, head, bobAmp: 0.012, speedMul: 1.6, shadowR: 0.28, swimSink: 0.06 });
+  const cr = new Creature(g, { legs, bobPart: body, head, bobAmp: 0.012, walkBob: 0.012, speedMul: 1.6, shadowR: 0.28, swimSink: 0.06 });
   cr.top = 0.24;
   return cr;
 }
@@ -481,11 +482,11 @@ export function makeSongbird(variant = 0) {
   g.add(tail);
   const legs = [];
   for (const sx of [-0.035, 0.035]) {
-    const L = leg(solid(0xc87a3a), 0.012, 0.07);
-    L.position.set(sx, 0.07, 0.01);
+    const L = leg(solid(0xc87a3a), 0.012, 0.085);
+    L.position.set(sx, 0.085, 0.01);
     g.add(L); legs.push(L);
   }
-  const cr = new Creature(g, { legs, bobPart: body, head, bobAmp: 0.01, speedMul: 2.4, shadowR: 0.2, swimSink: 0.08 });
+  const cr = new Creature(g, { legs, bobPart: body, head, bobAmp: 0.01, walkBob: 0.012, speedMul: 2.4, shadowR: 0.2, swimSink: 0.08 });
   cr.wings = wings;
   cr.top = 0.33;
   return cr;
@@ -581,13 +582,13 @@ export function makeCaiman(T) {
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 1.1, 6, 10), scale);
   body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
   body.position.y = 0.3; body.userData.y0 = 0.3;
-  body.scale.set(1, 1, 0.62);
+  body.scale.set(0.62, 1, 1);   // low and wide
   g.add(body);
   const head = new THREE.Group();
   head.position.set(0, 0.3, 0.8);
   const snout = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.5, 5, 8), scale);
   snout.rotation.z = Math.PI / 2; snout.rotation.y = Math.PI / 2;
-  snout.scale.set(1, 1, 0.55);
+  snout.scale.set(0.55, 1, 1);
   snout.position.z = 0.2;
   head.add(snout);
   for (const s of [-1, 1]) {
@@ -603,20 +604,20 @@ export function makeCaiman(T) {
   for (let i = 0; i < 4; i++) {
     const seg = new THREE.Mesh(new THREE.ConeGeometry(0.24 - i * 0.05, 0.5, 6), scale);
     seg.rotation.x = Math.PI / 2 + 0.08 * i;
-    seg.scale.y = 1;
+    seg.scale.z = 0.62;   // flatten to match the body
     seg.position.z = -i * 0.34;
     seg.position.y = 0;
     tail.add(seg);
   }
   g.add(tail);
   const legs = [];
-  for (const [sx, sz] of [[-0.34, 0.35], [0.34, 0.35], [-0.34, -0.35], [0.34, -0.35]]) {
+  for (const [sx, sz] of [[-0.26, 0.35], [0.26, 0.35], [-0.26, -0.35], [0.26, -0.35]]) {
     const L = leg(scale, 0.07, 0.22);
     L.position.set(sx, 0.22, sz);
     L.rotation.z = sx > 0 ? -0.5 : 0.5;
     g.add(L); legs.push(L);
   }
-  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, speedMul: 0.9, shadowR: 1.15, swimSink: 0.38,
+  return new Creature(g, { legs, bobPart: body, head, tail, bobAmp: 0.012, walkBob: 0.02, speedMul: 0.9, shadowR: 1.15, swimSink: 0.38,
     neck: { y: 0.3, z: 0.62, r: 0.33, tilt: Math.PI / 2, squash: 0.65 } });
 }
 
