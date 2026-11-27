@@ -198,6 +198,12 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
    (`ISLAND_R + 4` in `main.js`) becomes an outer-sea bound; fog far
    (210) and water plane (500) re-checked so neighbours read on the
    horizon. Watch swim length: the ocean is ~6 deep and featureless.
+   Split into four commits: **3a** archipelago engine ✅ (commit 18);
+   **3b** terraces (pools, mineral texture) ✅ (commit 19); **3c** paddies (rice, mud,
+   lily pads, critters) ✅ (commit 20); **3d** riverbank + current ✅ (commit 21). **Phase 3 complete.** Agreed for this phase:
+   the new islands hold *optional* content (the 8 friends and the Gathering
+   don't change); the home spring stays; new textures come from Gemini's
+   `gemini-nano-banana-2.1` (needs `GEMINI_API_KEY` in the environment).
 4. **Diplomacy puzzles**, one per gate: bird-on-head clears mist path;
    weight switch lowers a log bridge (procession piles on); capy herd
    tramples the reed wall to the riverbank.
@@ -565,6 +571,184 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     spot and settles; the necklace goes to the close follower, not the far
     waiting friend. All 5 failed on the old code. Full suite now 42 checks
     at 900×600 and 375×667 touch, zero JS errors.
+
+- **Commit 18 (Phase 3a): The archipelago engine.**
+  - `ISLANDS` in `world.js`: home (the original island, R 60), plus the
+    Steaming Terraces (NE, ~85,−55), the Rice Paddies (S, ~20,100), the
+    Riverbank (W, ~−100,30, long N–S, past the dolphin's beach so the Phase 4
+    ferry has somewhere to go), and two tiny palm islets as landmarks
+    (SE 50,70; W −74,−16). Neighbours are rotated ellipses; open water
+    between home and each is ~15–20 units, a 4–5 s swim.
+  - *Home is bit-identical.* The old `heightAt` is now `homeHeight`,
+    untouched; `heightAt = max(home, neighbours)`. Each neighbour term is
+    `-Infinity` outside its footprint and sinks an extra 4 below the sea
+    floor before the cutoff, so `max` never puts a step in the ocean floor.
+    Neighbour props use their own `mulberry` seeds and are built *after*
+    everything that draws from the home rng; `makeTree` takes an rng
+    argument for that.
+  - Biome shapers (heightfield only; content comes in 3b–3d): terraces are
+    stepped treads (0.8 rise) with risers tinted pale travertine by slope,
+    on a finer 0.6-unit mesh (the risers vanished at 1.3); paddies are a
+    7.5-unit grid of flooded fields at −0.09 (wading depth for every species,
+    ducklings included) between walkable bunds, with a dry rim; the riverbank
+    has a meandering channel at −1.3 open to the sea at both ends.
+  - Terrain: one mesh per island. Home keeps its exact 170×130 plane. Each
+    mesh keeps only triangles touching its own ground (`ownerAt`), so
+    overlapping meshes don't z-fight; a textured sea-floor plane at −6.6
+    fills the open ocean. Water plane 500 → 700 (texture repeat scaled to keep
+    the same density).
+  - Gameplay plumbing: the swim limit `ISLAND_R + 4` became `SEA_R` 150;
+    stress-out wanders to the nearest of `world.calmSpots` (spawn, spring,
+    and the open dry ground nearest each neighbour's middle);
+    `world.springs` + `world.springDist()` replace the single `SPRING`
+    check (only the home spring for now); a one-time arrival toast per
+    island; finale fireflies drift over each neighbour too.
+  - Verified headless (900×600 and 375×667 touch), 19 checks per size plus an
+    invariance diff: home `heightAt` identical on a 0.5 grid for r < 62
+    (the only diffs are 9 deep-water samples at r 62–70 under the islet's
+    footprint), the original 61 colliders an exact prefix, all 65 flowers
+    unchanged, dolphin unmoved; a 3-friend parade swims spawn → terraces →
+    paddies → riverbank with zero follower-above-water frames and arrives
+    within 9 units; arrival recorded; sea bound holds at 150.0; stress-out
+    on the paddies wanders to its calm spot; home spring 30 → 44 zen in 2 s
+    with the boost; full run to finale (8 homed, 8 runes); fireflies over
+    every island; zero JS errors. The old 42-check Phase 2 suite lived in a
+    lost scratchpad, so it wasn't rerun as such; the invariance diff is the
+    stand-in for it.
+  - Test note: the basking turtle is 5.5 from the spring, inside a 3-friend
+    aura, so standing at the spring's centre with a parade starts a calming
+    session (−3/s). That's correct; the test stands on the far side.
+  - Not yet: the terrace steps read only faintly under the grass texture
+    (fixed by the 3b mineral tile and pools). The sandy home shallows show a
+    hard triangle edge through the water at grazing angles; this predates
+    Phase 3.
+
+- **Commit 19 (Phase 3b): The Steaming Terraces.**
+  - Textures: five new tiles from `gemini-nano-banana-2.1` (all of 3b–3d's,
+    generated in one batch): `travertine`, `mud`, `rice`, `riverstones`
+    (512 px JPG like the others) and `lilypad.png` (a 256 px cut-out with
+    alpha keyed off the white background). Travertine came back with a
+    visible tile seam, so it got a half-tile roll-and-blend per axis; the
+    other three tiled cleanly as delivered. The loader takes `name.png` for
+    cut-outs; plain names are still `.jpg`.
+  - Terrain splat: `splatMaterial()` is a MeshLambertMaterial with a second
+    map mixed in by a per-vertex `splat` attribute (`onBeforeCompile`
+    replaces `map_fragment`; both maps share the base UVs, `altScale` sets
+    the alt tile size). Per-biome `SPLAT` functions decide the weight; the
+    vertex tint fades to white under the alt texture except on steep faces.
+    Home has no splat function, so its mesh and material are what they were.
+  - Terraces: travertine over the treads and all risers, with fbm grass
+    patches on the treads. Risers keep a soft apricot tint (a stronger
+    one made the whole slope orange).
+  - Mineral pools: scanned outward from the island's middle on a 1-unit
+    grid; a pool (r 2.4 / 1.9 / 1.5 / 1.2, first that fits) goes where the
+    tread is level within 0.035 at half radius and just past the rim, and
+    ≥3 from other pools. 6 pools: a big one on the summit tread and five
+    small ones on the tier below. Each is a milky turquoise disc, a squashed
+    travertine torus rim and 3 steam puffs. Trees, rocks and bushes skip
+    the pools.
+  - Pools are springs: `world.springs` gains one entry per pool (`r` + 0.3),
+    so zen +6/s and zoomies work unchanged. Each spring has its own `line`;
+    `world.springAt()` picks the toast, and moving to a different spring
+    re-toasts after 4 s instead of 16.
+  - Verified headless (900×600, 375×667 touch): 6 pools, every one level
+    across its disc, no collider inside; soaking 2 s takes zen 30 → 44 with
+    zoomies and the mineral toast; the home spring still does the same with
+    the yuzu toast; full run (8 befriended, walked to the grove, 8 homed,
+    8 runes, finale); zero JS errors.
+
+- **Commit 20 (Phase 3c): The Rice Paddies.**
+  - `PADDY` (exported from `world.js`, pure geometry + its own `mulberry`):
+    the fields are the 7.5-unit cells of the paddies' local grid whose centre
+    is in the flooded middle (`whole` if all four corners are). ~62% are
+    planted; the three whole fields nearest the north shore (the side you
+    swim in from) are always lily fields. It also holds the critter spots,
+    so `game.js` can place them without a world reference.
+  - Splat: mud on the flooded field floors only (`q` mask × "below 0.22");
+    the bunds and the dry rim stay grassy, so the grid reads as green paths
+    between brown water. The mud tile was lightened (gamma 0.75, contrast
+    ×0.7). A first try with muddy bunds read as a dark smear.
+  - Rice: one `InstancedMesh` of 5-blade cone tufts in 0.62-unit rows (556
+    tufts, one draw call), only where there is water; plus a painted decal
+    of seedlings floating at 0.035 on each whole planted field.
+    `rice.png` is the Gemini tile with alpha keyed on green-over-red/blue,
+    so only the blades are left; the opaque `rice.jpg` was dropped.
+  - Lily pads: one `InstancedMesh` of `lilypad.png` quads (alphaTest), up
+    to 9 per lily field, non-overlapping, only in water; 7 pink lotus blobs
+    on the bigger pads. Both PNG cut-outs were palette-quantized (600 → 44 KB
+    for the rice).
+  - Critters (added to `CRITTERS`): 2 frogs on perch pads (each perch gets
+    its own large pad), a turtle on the bund east of the first lily field,
+    and a herd of 3 cousins on the north rim. The dry rim is only a ring at
+    q ≈ 0.72–0.78 (measured: fields end at 0.7, the shore drop starts by
+    0.8); the first herd spots at q ≈ 0.9 were in the sea. Island props
+    keep 1.2 clear of the turtle and herd.
+  - `RIDE_CAP` 4 → 5 per stack: there are now 10 riders (3 songbirds,
+    4 frogs, 3 turtles), and at 4 the last two would have walked in the
+    parade instead.
+  - Verified headless (900×600, 375×667 touch): 556 tufts, 50 pads, 6 paddy
+    critters all on the paddies and clear of colliders; frogs in the water,
+    turtle and herd on dry ground; field depth is wading depth for a
+    duckling; all 10 riders aboard (5 + 5); a paddy cousin calmed with one
+    friend in the parade joins it; full regression run to the finale; zero
+    JS errors.
+
+- **Commit 21 (Phase 3d): The Riverbank and its current.**
+  - Channel reshaped: 3a's V (`1 − dist/5`) only dipped below sea level in a
+    ~2-unit strip, so it read as a ditch. Now `smooth((7.5 − dist)/3.5)`: a
+    flat bed at −1.3 for ±4 of the meandering centre line, sloping banks out
+    to 7.5. Water is ~9 wide.
+  - Splat: `riverstones` (tile ×2.4) within 7.5 of the centre line, fading
+    to grass by 9.5. At ×1.4 the pebbles read as boulders.
+  - River surface: a ribbon mesh (4 verts across × 90 segments) following
+    `riverCentre` from mouth to mouth at y 0.03, `water` texture scrolled
+    downstream at the current's speed, RGBA vertex colours fade it out at
+    the sides and both mouths (the banks hide its edges anyway). Tinted like
+    the sea, alpha 0.6.
+  - `currentAt(x, z)` (exported, also `world.currentAt`): zero unless in
+    water on the Riverbank; flows along the centre line's tangent toward
+    +lz (south, out to sea), `CURRENT_MAX` 2.4 mid-channel, fading to 0 at
+    5.2 from the centre and over the last 6 units past each mouth. Swimming
+    is 4.2, so upstream nets ~1.8 and you can always get out.
+  - The player (main.js, after input movement and before the collide /
+    separate pass) and every follower (game.js, after its trail step, with
+    a collide) are moved by it. Without the follower half a floating
+    capybara left the parade behind. One-time toast the first time it
+    carries you at > 1.2.
+  - 3 mid-stream boulders (colliders r 1.15): the current carries you onto
+    one and you slide around it (a round collider can't pin you).
+  - 16 leaves (every 4th a petal) ride the river mouth to mouth, spinning,
+    hidden past the faded mouths.
+  - Verified headless (900×600, 375×667 touch): current 2.4 mid-channel
+    heading south, 0 on the bank, 0 everywhere on home (1.5 grid); idle in
+    the river drifts 7 units in 3 s and toasts; holding W upstream still
+    gains 3.4 in 2 s; drifting onto a boulder keeps ≥ r + 0.55 and slides
+    past; a 3-friend parade floating 6 s (11 units of drift) stays within
+    7.6; the 3b and 3c suites and the full regression run to the finale
+    still pass; zero JS errors.
+  - Test-harness note: teleporting the player 90 units from the parade and
+    checking distances a few seconds later measures the parade's swim over,
+    not the current; the test now puts the friends on the bank first.
+
+- **Commit 22: PR #6 review fix: the terrain mesh now matches `heightAt`.**
+  - Finding (P2): the paddies' mesh was ~1.28 units per cell while their
+    bund edges are 0.55 wide, so the rendered ground and `heightAt` (which
+    places characters, water and pads) disagreed. Reproduced first with a
+    downward raycast against `world.terrains`: at (24.682, 90.378) the
+    ground was 0.339 while `heightAt` gave −0.09; worst error 0.41 on the
+    paddies, with 4 lily-pad centres under the rendered ground and 15 pads
+    lapping onto a bund. The same sweep found 0.43 on the terraces and 0.54
+    on the riverbank's banks.
+  - Fix: mesh spacing per biome, terraces 0.6 → 0.45, paddies 1.3 → 0.35,
+    riverbank 1.3 → 0.8. A rotated grid can't line up with an axis-aligned
+    plane, so finer tessellation it is. Lily pads now need their whole disc
+    over water (6 rim samples), not just the centre.
+  - After: the probe point renders at −0.085; worst error is 0.17 on the
+    paddies (3 of 12k samples above 0.12, on bund crests), 0.23 on the
+    riverbank, 0.37 on terrace riser edges (was 0.43; resolving those fully
+    needs ~0.3 spacing). 0 pads under ground or over a bund (36 pads).
+    Terrain vertices 66k → 142k; headless boot 3.1 → 3.7 s. 3b/3c/3d
+    suites and the full regression all still pass.
 
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
