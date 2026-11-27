@@ -750,6 +750,19 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     Terrain vertices 66k → 142k; headless boot 3.1 → 3.7 s. 3b/3c/3d
     suites and the full regression all still pass.
 
+- **Commit 23: the otter's front legs no longer float off its body.**
+  - Bug: walking otters' front legs looked detached. Side renders showed a
+    gap under the belly mid-stride, and the front legs barely touched it
+    even standing. The body pitches nose-up (`rotation.x = -0.35`), so the
+    belly at the front hips sits at y ≈ 0.275, while all four legs pivoted
+    at 0.22. Walking lifts only the body (bob up to 0.05) and the leg swing
+    drops the top cap's edge ~0.03, so the gap reached ~0.1.
+  - Fix: front legs pivot at 0.38 with length 0.38 (about 0.1 inside the
+    belly); rear legs unchanged. No shared animation code touched.
+  - Verified with side renders at standing, 8 stride phases and swimming:
+    all legs stay joined. Agouti (also tilted) checked and was already fine.
+    Headless boot: zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

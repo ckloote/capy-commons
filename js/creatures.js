@@ -303,9 +303,11 @@ export function makeOtter(T) {
   tail.position.set(0, 0.22, -0.55);
   g.add(tail);
   const legs = [];
-  for (const [sx, sz] of [[-0.16, 0.22], [0.16, 0.22], [-0.16, -0.25], [0.16, -0.25]]) {
-    const L = leg(fur, 0.06, 0.22);
-    L.position.set(sx, 0.22, sz);
+  // the body pitches nose-up, so the belly sits higher at the front: front hips
+  // pivot deeper inside it so the walk bob + swing never opens a gap
+  for (const [sx, sz, h] of [[-0.16, 0.22, 0.38], [0.16, 0.22, 0.38], [-0.16, -0.25, 0.22], [0.16, -0.25, 0.22]]) {
+    const L = leg(fur, 0.06, h);
+    L.position.set(sx, h, sz);
     g.add(L); legs.push(L);
   }
   return new Creature(g, { legs, bobPart: body, head, tail, speedMul: 1.3, shadowR: 0.65, swimSink: 0.4,
