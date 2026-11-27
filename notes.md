@@ -763,6 +763,24 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     all legs stay joined. Agouti (also tilted) checked and was already fine.
     Headless boot: zero JS errors.
 
+- **Commit 24: every creature's legs stay on while walking; the caiman is flat.**
+  - Swept all 15 legged builders: 32 frames over a stride, testing whether
+    each leg's top sits inside the body, plus side/front renders. Big
+    animals were fine; songbird, frog, duckling and duck lifted off their
+    legs, and the caiman's legs floated beside him even standing.
+  - Cause (small critters): the walk bob lifted every body a fixed 0.05,
+    nearly a songbird's whole leg. Now a per-creature `walkBob` (default
+    0.05): duck 0.025, duckling 0.015, frog/songbird 0.012, caiman 0.02.
+    Frog front hips 0.08 → 0.11 and songbird hips 0.07 → 0.085, legs
+    lengthened to match.
+  - Cause (caiman): his body/snout squash was on the axis that becomes
+    world x, so he was tall and narrow (0.68 × 0.42) with his belly below
+    ground. Squash moved to the vertical axis (now 0.42 tall × 0.68 wide),
+    tail segments flattened to match, legs moved in 0.34 → 0.26. His lei
+    (tuned as a squashed vertical ring) now hugs the neck; eyes on top.
+  - After: every leg's top centre stays inside the body all stride.
+    Headless boot: zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless
