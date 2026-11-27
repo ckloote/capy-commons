@@ -408,7 +408,14 @@ export function makeDuckling() {
 export function makeTurtle(T) {
   const g = new THREE.Group();
   const skin = solid(0x8f9e62);
-  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(T.scales, 0x9a8a50));
+  // a hemisphere's own UVs squeeze the texture into rings around a pinch on top;
+  // project it straight down instead, at the same density as the capsule bodies
+  const shellGeo = new THREE.SphereGeometry(0.3, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  {
+    const p = shellGeo.attributes.position, uv = shellGeo.attributes.uv, C = 2 * Math.PI * 0.3;
+    for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / C, p.getZ(i) / C);
+  }
+  const shell = new THREE.Mesh(shellGeo, mat(T.scales, 0x9a8a50));
   shell.scale.set(1, 0.62, 1.15);
   shell.position.y = 0.1; shell.userData.y0 = 0.1;
   g.add(shell);

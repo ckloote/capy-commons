@@ -810,6 +810,15 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
   - Verified: side vertex layout as assumed, ΔV = slant/2πr for each cone;
     in-game before/after close-ups of all three tails; zero JS errors.
 
+- **Commit 27: the turtle's shell shows scales, not growth rings.**
+  - The shell is a hemisphere, and `SphereGeometry` fits the texture's
+    full V into the short top-to-rim arc (~4× denser than around), with
+    every U column meeting at the top: concentric rings around a pinch.
+  - Fix: the shell's UVs are projected straight down (x, z over the
+    circumference, the same density as the capsule bodies). No pole, no
+    rings; only a mild stretch at the steep rim.
+  - Verified in-game from above and from the side; zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless
