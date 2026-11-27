@@ -122,6 +122,24 @@ export function makeNecklace(r) {
   return g;
 }
 
+// CapsuleGeometry spaces V per profile point, not per length, so its long
+// straight middle gets ~1/25 of the texture and fur/scales smear into streaks.
+// Re-space V by arc length, in units of the circumference, so a tile along
+// the body is as long as one around it.
+function capsule(r, length, capSeg, radSeg) {
+  const geo = new THREE.CapsuleGeometry(r, length, capSeg, radSeg);
+  const pos = geo.attributes.position, uv = geo.attributes.uv;
+  const P = pos.count / (radSeg + 1);   // lathe: meridian by meridian, P profile points each
+  const s = [0];
+  for (let j = 1; j < P; j++) {
+    const ra = Math.hypot(pos.getX(j - 1), pos.getZ(j - 1)), rb = Math.hypot(pos.getX(j), pos.getZ(j));
+    s.push(s[j - 1] + Math.hypot(rb - ra, pos.getY(j) - pos.getY(j - 1)));
+  }
+  const C = 2 * Math.PI * r;
+  for (let i = 0; i < pos.count; i++) uv.setY(i, s[i % P] / C);
+  return geo;
+}
+
 function leg(matl, r, h) {
   const pivot = new THREE.Group();
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.8, h, 6), matl);
@@ -135,7 +153,7 @@ export function makeCapybara(T, scale = 1) {
   const fur = mat(T.fur_capy);
   const g = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 0.75, 6, 12), fur);
+  const body = new THREE.Mesh(capsule(0.5, 0.75, 6, 12), fur);
   body.rotation.z = Math.PI / 2;
   body.rotation.y = Math.PI / 2;
   body.position.y = 0.62;
@@ -202,7 +220,7 @@ export function makeCousin(T) {
 export function makeTapir(T) {
   const hide = mat(T.fur_dark);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.62, 1.1, 6, 12), hide);
+  const body = new THREE.Mesh(capsule(0.62, 1.1, 6, 12), hide);
   body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
   body.position.y = 0.85; body.userData.y0 = 0.85;
   g.add(body);
@@ -277,7 +295,7 @@ export function makeHeron(T) {
 export function makeOtter(T) {
   const fur = mat(T.fur_otter);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.7, 6, 10), fur);
+  const body = new THREE.Mesh(capsule(0.26, 0.7, 6, 10), fur);
   body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
   body.rotation.x = -0.35;
   body.position.y = 0.42; body.userData.y0 = 0.42;
@@ -496,7 +514,7 @@ export function makeSongbird(variant = 0) {
 export function makeMonkey(T) {
   const fur = mat(T.fur_otter, 0xd8c860);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.3, 6, 10), fur);
+  const body = new THREE.Mesh(capsule(0.16, 0.3, 6, 10), fur);
   body.position.y = 0.45; body.userData.y0 = 0.45;
   g.add(body);
   const head = new THREE.Group();
@@ -544,7 +562,7 @@ export function makeMonkey(T) {
 export function makeAgouti(T) {
   const fur = mat(T.fur_capy, 0xc09a58);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.4, 6, 10), fur);
+  const body = new THREE.Mesh(capsule(0.2, 0.4, 6, 10), fur);
   body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
   body.rotation.x = -0.25;
   body.position.y = 0.38; body.userData.y0 = 0.38;
@@ -579,14 +597,14 @@ export function makeAgouti(T) {
 export function makeCaiman(T) {
   const scale = mat(T.scales);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 1.1, 6, 10), scale);
+  const body = new THREE.Mesh(capsule(0.34, 1.1, 6, 10), scale);
   body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
   body.position.y = 0.3; body.userData.y0 = 0.3;
   body.scale.set(0.62, 1, 1);   // low and wide
   g.add(body);
   const head = new THREE.Group();
   head.position.set(0, 0.3, 0.8);
-  const snout = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.5, 5, 8), scale);
+  const snout = new THREE.Mesh(capsule(0.17, 0.5, 5, 8), scale);
   snout.rotation.z = Math.PI / 2; snout.rotation.y = Math.PI / 2;
   snout.scale.set(0.55, 1, 1);
   snout.position.z = 0.2;
@@ -625,7 +643,7 @@ export function makeCaiman(T) {
 export function makeMarmoset(T) {
   const fur = mat(T.fur_otter, 0xcccccc);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.2, 6, 8), fur);
+  const body = new THREE.Mesh(capsule(0.11, 0.2, 6, 8), fur);
   body.position.y = 0.3; body.userData.y0 = 0.3;
   g.add(body);
   const head = new THREE.Group();
@@ -722,7 +740,7 @@ export function makeDolphin() {
 export function makeOcelot(T) {
   const fur = mat(T.fur_ocelot);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.85, 6, 10), fur);
+  const body = new THREE.Mesh(capsule(0.26, 0.85, 6, 10), fur);
   body.rotation.z = Math.PI / 2; body.rotation.y = Math.PI / 2;
   body.position.y = 0.5; body.userData.y0 = 0.5;
   g.add(body);

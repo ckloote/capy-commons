@@ -781,6 +781,23 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
   - After: every leg's top centre stays inside the body all stride.
     Headless boot: zero JS errors.
 
+- **Commit 25: capsule bodies no longer smear their textures into streaks.**
+  - Bug: Old Grim's scales (and the otter's, tapir's, ocelot's fur) were
+    stretched into lengthwise stripes; he read as a log. three.js
+    `CapsuleGeometry` is a lathe whose V advances one step per profile
+    point: each cap gets 12 points, the straight middle gets 1, so the
+    middle of every body held 1/25 of the texture (caiman: ~0.1 tiles along
+    1.1 units vs 2.5 tiles around).
+  - Fix: `capsule()` in `creatures.js` builds the geometry and re-spaces V
+    by arc length in units of the circumference, so tiles are as long as
+    they are wide. Used for all 9 textured capsules (capybara, tapir, otter,
+    monkey, agouti, caiman body + snout, marmoset, ocelot); the untextured
+    dolphin is left alone. No material/repeat changes.
+  - Verified: every capsule's vertex layout matches the assumed lathe order,
+    V is monotonic, the middle span gets exactly length/2πr (caiman 0.04 →
+    0.515). In-game before/after shots of all 8 creatures: streaks gone, no
+    seams at the caps. Leg sweep unchanged; zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless
