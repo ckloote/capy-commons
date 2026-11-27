@@ -798,6 +798,18 @@ springs, rice paddies, riverbank); narrative hook: the annual pilgrimage to
     0.515). In-game before/after shots of all 8 creatures: streaks gone, no
     seams at the caps. Leg sweep unchanged; zero JS errors.
 
+- **Commit 26: cone tails tile like their bodies.**
+  - `ConeGeometry`'s side maps V 0..1 over the height whatever the girth,
+    so textured cone tails had their texture squashed lengthwise and looked
+    coarser than the bodies after Commit 25 (caiman segments ~2.7× denser
+    along than around).
+  - Fix: `cone()` re-spaces the side's V along the slant in units of the base
+    circumference (base cap untouched). Used for the textured cone tails:
+    caiman's 4 segments, otter, duck. Plain-colour cones (beaks, crests,
+    dolphin parts) are left alone.
+  - Verified: side vertex layout as assumed, ΔV = slant/2πr for each cone;
+    in-game before/after close-ups of all three tails; zero JS errors.
+
 ### Status: feature-complete (as the v1 fetch-quest game)
 Remaining niceties if time allows: idle capybara ear wiggles, more ambient
 critters. The emoji want-icons depend on the device's emoji font (headless

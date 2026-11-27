@@ -140,6 +140,17 @@ function capsule(r, length, capSeg, radSeg) {
   return geo;
 }
 
+// ConeGeometry's side maps V 0..1 over the height whatever the girth, so
+// textured cone tails get the texture squashed lengthwise. Same remedy as
+// capsule(): V along the slant in units of the base circumference.
+function cone(r, h, radSeg) {
+  const geo = new THREE.ConeGeometry(r, h, radSeg);
+  const uv = geo.attributes.uv;
+  const k = Math.hypot(r, h) / (2 * Math.PI * r);
+  for (let i = 0; i < 2 * (radSeg + 1); i++) uv.setY(i, uv.getY(i) * k);   // side rows only; base cap untouched
+  return geo;
+}
+
 function leg(matl, r, h) {
   const pivot = new THREE.Group();
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.8, h, 6), matl);
@@ -317,7 +328,7 @@ export function makeOtter(T) {
     head.add(ear);
   }
   g.add(head);
-  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.75, 8), fur);
+  const tail = new THREE.Mesh(cone(0.13, 0.75, 8), fur);
   tail.rotation.x = Math.PI / 2 + 0.5;
   tail.position.set(0, 0.22, -0.55);
   g.add(tail);
@@ -341,7 +352,7 @@ export function makeDuck(T) {
   body.scale.set(0.85, 0.8, 1.25);
   body.position.y = 0.38; body.userData.y0 = 0.38;
   g.add(body);
-  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.25, 6), plume);
+  const tail = new THREE.Mesh(cone(0.1, 0.25, 6), plume);
   tail.rotation.x = -Math.PI / 2 - 0.6;
   tail.position.set(0, 0.5, -0.34);
   g.add(tail);
@@ -620,7 +631,7 @@ export function makeCaiman(T) {
   const tail = new THREE.Group();
   tail.position.set(0, 0.28, -0.7);
   for (let i = 0; i < 4; i++) {
-    const seg = new THREE.Mesh(new THREE.ConeGeometry(0.24 - i * 0.05, 0.5, 6), scale);
+    const seg = new THREE.Mesh(cone(0.24 - i * 0.05, 0.5, 6), scale);
     seg.rotation.x = Math.PI / 2 + 0.08 * i;
     seg.scale.z = 0.62;   // flatten to match the body
     seg.position.z = -i * 0.34;
